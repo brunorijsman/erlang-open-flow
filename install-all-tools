@@ -11,5 +11,3 @@ apt-get install git
 
 # Install Emacs editor
 apt-get install emacs23
-
-
