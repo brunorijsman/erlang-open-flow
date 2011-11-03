@@ -11,3 +11,6 @@ apt-get install git
 
 # Install Emacs editor
 apt-get install emacs23
+
+# Install Erlang programming language
+apt-get install erlang-base
