@@ -1,0 +1,2 @@
+#!/bin/bash
+git push https://brunorijsman@bitbucket.org/brunorijsman/erlang-open-flow.git master
