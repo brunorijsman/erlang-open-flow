@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# TODO: Check all commands (cp, mkdir, etc.) for errors
+
+echo Customizing Emacs...
+
+function create_directory_if_doesnt_exist {
+    local directory_name=$1    
+    if [ ! -d $directory_name ]; then
+	# TODO: Check for error
+	echo "Create directory $directory_name"
+	mkdir ~/.emacs.d
+    fi
+}
+
+function backup_file_if_exists {
+    local file=$1
+    if [ -f $file ]; then
+	echo "$file exists"
+	local file_basename=$(basename $file)
+	local file_dirname=$(dirname $file)
+	local extension="$(date --utc +UTC-%Y-%m-%d-%H-%M-%S).backup"
+	local backup_file="$file.$extension"
+	echo "Backup file $file -> $backup_file"
+	cp $file $backup_file
+    fi
+}
+    
+function install_file {
+    local source_file=$1
+    local destination_file=$2
+    local destination_directory=$(dirname $destination_file)
+    create_directory_if_doesnt_exist $destination_directory
+    backup_file_if_exists $destination_file
+    echo "Install file $source_file -> $destination_file"
+    cp $source_file $destination_file
+}
+
+install_file emacs/init.el ~/.emacs.d/init.el
+install_file emacs/fill-column-indicator.el ~/.emacs.d/fill-column-indicator.el
