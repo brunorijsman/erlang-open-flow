@@ -1,0 +1,9 @@
+[Page 25] Inconsistency: "OFP_MAX_ETH_ALEN is 6" -> "OFP_ETH_ALEN is 6"
+
+[Page 28] Typo in struct ofp_queue_prop_header: "64-bit alignemnt" -> "64-bit alignment"
+
+[General] Inconsistent naming for layer 2 addresses:
+hw_addr => hw for hardware
+OPT_ETH_ALEN => eth for ethernet
+dl_src => dl for datalink
+

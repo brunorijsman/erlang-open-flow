@@ -1,0 +1,33 @@
+Example of good code: https://github.com/andrenth/routemachine/blob/master/include/bgp.hrl
+
+Finish ofp.hrl header file for all messages.
+
+Write header file to represent messages in native format.
+
+Write decoder from binary to native format.
+
+Write unit test for decoder for good messages.
+
+Write unit test for decoder for bad messages.
+
+Setup infrastructure for building and unit testing.
+
+Write encoder from native format to binary.
+
+Write unit test for encoder.
+
+Implement client (independent of transport layer)
+
+Implement TCP transport layer.
+
+Test client against real OpenFlow server.
+
+Write command line utility to get information about real OpenFlow server.
+
+Write automatic conformance test and run against real OpenFlow server.
+
+Write automatic performance test and run against real OpenFlow server.
+
+Implement server (independent of transport layer)
+
+
