@@ -7,3 +7,13 @@ hw_addr => hw for hardware
 OPT_ETH_ALEN => eth for ethernet
 dl_src => dl for datalink
 
+[Page 36] Why is the field called 'reserverd' (and not pad like everywhere else).
+
+[Page 36] 8 bits for n_tables is not nearly enough; there are platforms which support 
+many more than 256 tables.
+
+[Page 37] Second reference for n_buffers is ??.
+
+[Page 37] There is a paragraph discussion the actions field. However, the struct
+ofp_switch_features does not have an actions field.
+

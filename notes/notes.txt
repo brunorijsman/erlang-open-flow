@@ -1,5 +1,7 @@
 Example of good code: https://github.com/andrenth/routemachine/blob/master/include/bgp.hrl
 
+Have proper Erlang style make files
+
 Finish ofp.hrl header file for all messages.
 
 Write header file to represent messages in native format.

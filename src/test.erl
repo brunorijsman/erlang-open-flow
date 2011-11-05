@@ -1,2 +1,0 @@
--module(test).
--behavior(gen_server).
