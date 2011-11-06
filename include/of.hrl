@@ -260,6 +260,13 @@
            TableStats : 1,
            FlowStats  : 1 >>).   
 
+-define(OF_SWITCH_CONFIG_PATTERN, 
+        << _Reserved              : 13,
+           InvalidTtlToController : 1,
+           FragReasm              : 1,
+           FragDrop               : 1,
+           MissSendLen            : 16 >>).   
+
 -define(OF_HELLO_PATTERN,
         << _FutureExtension/binary >>).
 
@@ -290,7 +297,10 @@
            _Reserved    : 32,
            Ports/binary >>).
 
-%% TODO: Continue with wildcards on page 29 of the spec
+-define(OF_GET_CONFIG_REQUEST_PATTERN, << >>).
+
+-define(OF_GET_CONFIG_REPLY_PATTERN,
+        << SwitchConfig/binary >>).
 
 -type uint8() :: 0..255.
 
@@ -396,5 +406,16 @@
           n_tables     :: uint8(),
           capabilities :: #of_capabilities{},
           ports        :: [#of_port{}] }).
+
+-record(of_get_config_request, {}).
+
+-record(of_switch_config, {
+          frag_drop                 :: boolean(),
+          frag_reasm                :: boolean(),
+          invalid_ttl_to_controller :: boolean(),
+          miss_send_len             :: uint16() }).
+
+-record(of_get_config_reply, {
+          switch_config :: #of_switch_config{} }).
 
 -endif.

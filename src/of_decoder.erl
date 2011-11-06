@@ -11,7 +11,9 @@
          decode_echo_reply/1,
          decode_experimenter/1,
          decode_features_request/1,
-         decode_features_reply/1]).
+         decode_features_reply/1,
+         decode_get_config_request/1,
+         decode_get_config_reply/1]).
 
 %% TODO: Specify the search path
 %% TODO: Emacs indentation for single percent (%) comments is broken
@@ -86,6 +88,16 @@ decode_features_reply(?OF_FEATURES_REPLY_PATTERN) ->
       n_tables     = NTables,
       capabilities = decode_capabilities(Capabilities),
       ports        = decode_ports(Ports)
+     }.
+
+-spec decode_get_config_request(binary()) -> #of_get_config_request{}.
+decode_get_config_request(?OF_GET_CONFIG_REQUEST_PATTERN) ->
+    _GetConfigRequest = #of_get_config_request{}.
+
+-spec decode_get_config_reply(binary()) -> #of_get_config_reply{}.
+decode_get_config_reply(?OF_GET_CONFIG_REPLY_PATTERN) ->
+    _GetConfigReply = #of_get_config_reply{
+      switch_config = decode_switch_config(SwitchConfig)
      }.
 
 %%
@@ -163,3 +175,13 @@ decode_ports(?OF_PORTS_PATTERN, ParsedPorts) ->
       max_speed_kbps      = MaxSpeedKbps
      },
     decode_ports(MorePorts, [Port | ParsedPorts]).
+
+-spec decode_switch_config(binary()) -> #of_switch_config{}.
+decode_switch_config(?OF_SWITCH_CONFIG_PATTERN) ->
+    _SwitchConfig = #of_switch_config{
+      frag_drop                 = FragDrop,
+      frag_reasm                = FragReasm,
+      invalid_ttl_to_controller = InvalidTtlToController,
+      miss_send_len             = MissSendLen
+     }.
+

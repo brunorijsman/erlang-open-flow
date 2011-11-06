@@ -17,3 +17,6 @@ many more than 256 tables.
 [Page 37] There is a paragraph discussion the actions field. However, the struct
 ofp_switch_features does not have an actions field.
 
+[Page 37] Change the comment next to flags from "OPC_* flags" to "OPC_FRAG_* or IPC_INVALID_* flags" - there are other unrelated constants which start with the OPC_ prefix (e.g. OPC_FLOW_STATS and other capabilities).
+
+
