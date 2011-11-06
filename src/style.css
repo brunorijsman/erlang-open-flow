@@ -1,0 +1,47 @@
+/*
+ * Copyright (c) 2011, Bruno Rijsman.
+ * All rights reserved.
+ */
+
+body {
+  color:black;
+  font-family:serif;
+  font-size:12pt;
+}
+
+h1 {
+  color:white;
+  background-color:royalblue;
+  padding:5px;
+  font-size:150%;
+}
+
+h2 {
+  background-color:#D9E1F9;
+  padding:5px;
+  font-size:120%;
+}
+
+h3 {
+  font-size:100%;
+}
+
+table {
+  text-align:left;
+  border-collapse:collapse;
+}
+
+th, td {
+  padding:5px;
+  border-style:solid;
+  border-color:white;
+}
+
+th {
+  background-color:gray;
+  color:white;
+}
+
+td {
+  background-color:lightgray;
+}

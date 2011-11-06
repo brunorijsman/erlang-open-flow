@@ -5,17 +5,30 @@ MAKE_ERL = 'case make:all() of \
                 halt(0);       \
               error ->         \
                 halt(1)        \
-            end.'			
+            end.'
 
 TEST_ERL = 'eunit:test("ebin", [])'
 
-all: compile test
+COVER_ERL = 'case of_cover:coverage_dir("src", "cover") of  \
+               ok ->                                        \
+                 halt(0);                                   \
+               _ ->                                         \
+                 halt(1)                                    \
+             end.'
+
+all: compile test cover
 
 compile: ebin
 	@${ERL} -noinput -eval ${MAKE_ERL}
 
 test: compile
 	@${ERL} -noshell -pa ebin -eval ${TEST_ERL} -s init stop
+
+cover: compile
+	@mkdir -p cover
+	@cp src/style.css cover/style.css
+	@${ERL} -noshell -pa ebin -eval ${COVER_ERL} -s init stop
+	@mv *.COVER.html cover
 
 ebin:
 	@mkdir -p ebin
@@ -24,4 +37,5 @@ clean:
 	@rm -f ebin/*.beam
 	@rm -f ebin/erl_crash.dump
 	@rm -f erl_crash.dump
+	@rm -rf cover
 	@find . -name *~ | xargs rm -f
