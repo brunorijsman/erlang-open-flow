@@ -1,6 +1,6 @@
 %%% EMakefile
 
-{["src/of_decoder.erl"],
+{["src/*"],
  [{i, "include"},
   {outdir, "ebin"},
   debug_info]

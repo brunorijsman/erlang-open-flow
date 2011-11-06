@@ -7,15 +7,21 @@ MAKE_ERL = 'case make:all() of \
                 halt(1)        \
             end.'			
 
-all: compile
+TEST_ERL = 'eunit:test("ebin", [])'
+
+all: compile test
 
 compile: ebin
-	@$(ERL) -noinput -eval $(MAKE_ERL)
+	@${ERL} -noinput -eval ${MAKE_ERL}
+
+test: compile
+	@${ERL} -noshell -pa ebin -eval ${TEST_ERL} -s init stop
 
 ebin:
 	@mkdir -p ebin
 
 clean:
-	rm -f ebin/*.beam
-	rm -f ebin/erl_crash.dump
-	rm -f erl_crash.dump
+	@rm -f ebin/*.beam
+	@rm -f ebin/erl_crash.dump
+	@rm -f erl_crash.dump
+	@find . -name *~ | xargs rm -f

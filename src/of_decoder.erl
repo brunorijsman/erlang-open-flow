@@ -15,6 +15,8 @@
          decode_get_config_request/1,
          decode_get_config_reply/1]).
 
+-include_lib("eunit/include/eunit.hrl").
+
 %% TODO: Specify the search path
 %% TODO: Emacs indentation for single percent (%) comments is broken
 
@@ -184,4 +186,19 @@ decode_switch_config(?OF_SWITCH_CONFIG_PATTERN) ->
       invalid_ttl_to_controller = InvalidTtlToController,
       miss_send_len             = MissSendLen
      }.
+
+%%
+%% Unit tests
+%%
+
+decode_header_ok_test() ->
+    Binary = << ?OF_VERSION_2 : 8,            % Version
+                ?OF_MESSAGE_TYPE_HELLO : 8,   % Type
+                0 : 16,                       % Length
+                0 : 32 >>,                    % Xid
+    Record = #of_header{version = ?OF_VERSION_2,
+                        type    = ?OF_MESSAGE_TYPE_HELLO,
+                        length  = 0,
+                        xid     = 0},
+    ?assert(decode_header(Binary) =:= Record).
 
