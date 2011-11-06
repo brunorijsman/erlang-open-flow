@@ -2,8 +2,6 @@
 %% @copyright 2011 Bruno Rijsman
 %%
 
-%% TODO: Consider throwing an exception instead of returning an error?
-
 -module(of_decoder).
 
 -export([decode_header/1,
@@ -16,12 +14,17 @@
          decode_features_reply/1]).
 
 %% TODO: Specify the search path
+%% TODO: Emacs indentation for single percent (%) comments is broken
 
 -include_lib("../include/of.hrl").
 
+%%
+%% Exported functions.
+%%
+
 %% TODO: Validate length?
 %% TODO: Validate xid?
--spec decode_header(binary()) -> {ok, #of_header{}} | {error, of_error_type(), of_error_code()}.
+-spec decode_header(binary()) -> #of_header{}.
 decode_header(?OF_HEADER_PATTERN) ->
     Header = #of_header{
       version = Version,
@@ -31,65 +34,132 @@ decode_header(?OF_HEADER_PATTERN) ->
      },
     if
         (Version < ?OF_VERSION_MIN) or (Version > ?OF_VERSION_MAX) ->
-            {error, ?OF_ERROR_TYPE_BAD_REQUEST, ?OF_ERROR_CODE_BAD_REQUEST_BAD_VERSION};
+            throw({error, ?OF_ERROR_TYPE_BAD_REQUEST, ?OF_ERROR_CODE_BAD_REQUEST_BAD_VERSION});
         (Type < ?OF_MESSAGE_TYPE_MIN) or (Type > ?OF_MESSAGE_TYPE_MAX) ->
-            {error, ?OF_ERROR_TYPE_BAD_REQUEST, ?OF_ERROR_CODE_BAD_REQUEST_BAD_TYPE};
+            throw({error, ?OF_ERROR_TYPE_BAD_REQUEST, ?OF_ERROR_CODE_BAD_REQUEST_BAD_TYPE});
         true ->
-            {ok, Header}
+            Header
     end.
 
--spec decode_hello(binary()) -> {ok, #of_hello{}} | {error, of_error_type(), of_error_code()}.
+-spec decode_hello(binary()) -> #of_hello{}.
 decode_hello(?OF_HELLO_PATTERN) ->
-    Hello = #of_hello{},
-    {ok, Hello}.
+    _Hello = #of_hello{}.
 
--spec decode_error(binary()) -> {ok, #of_error{}} | {error, of_error_type(), of_error_code()}.
+-spec decode_error(binary()) -> #of_error{}.
 decode_error(?OF_ERROR_PATTERN) ->
-    Error = #of_error{
+    %% No validation, accept unrecognized types and codes.
+    _Error = #of_error{
       type = Type,
       code = Code,
       data = Data
-     },
-    %% No validation, accept unregnized types and codes.
-    {ok, Error}.
+     }.
 
--spec decode_echo_request(binary()) -> {ok, #of_echo_request{}} |  {error, of_error_type(), of_error_code()}.
+-spec decode_echo_request(binary()) -> #of_echo_request{}.
 decode_echo_request(?OF_ECHO_REQUEST_PATTERN) ->
-    EchoRequest = #of_echo_request{
+    _EchoRequest = #of_echo_request{
       data = Data
-     },
-    {ok, EchoRequest}.
+     }.
 
--spec decode_echo_reply(binary()) -> {ok, #of_echo_reply{}} |  {error, of_error_type(), of_error_code()}.
+-spec decode_echo_reply(binary()) -> #of_echo_reply{}.
 decode_echo_reply(?OF_ECHO_REPLY_PATTERN) ->
-    EchoReply = #of_echo_reply{
+    _EchoReply = #of_echo_reply{
       data = Data
-     },
-    {ok, EchoReply}.
+     }.
 
--spec decode_experimenter(binary()) -> {ok, #of_experimenter{}} | {error, of_error_type(), of_error_code()}.
+-spec decode_experimenter(binary()) -> #of_experimenter{}.
 decode_experimenter(?OF_EXPERIMENTER_PATTERN) ->
-    Experimenter = #of_experimenter{
+    %% No validation, higher layer to determine if the extension is supported.
+    _Experimenter = #of_experimenter{
       experimenter_id = ExperimenterId,
       data = Data
-     },
-    %% No validation, reply on higher layer to determine if the extension is supported.
-    {ok, Experimenter}.
+     }.
 
--spec decode_features_request(binary()) -> {ok, #of_features_request{}} | {error, of_error_type(), of_error_code()}.
+-spec decode_features_request(binary()) -> #of_features_request{}.
 decode_features_request(?OF_FEATURES_REQUEST_PATTERN) ->
-    FeaturesRequest = #of_echo_request{},
-    {ok, FeaturesRequest}.
+    _ReaturesRequest = #of_features_request{}.
 
--spec decode_features_reply(binary()) -> {ok, #of_features_reply{}} |  {error, of_error_type(), of_error_code()}.
-decode_features_reply(?OF_FEATURES_REQUEST_PATTERN) ->
-    ReaturesReply = #of_features_reply{
+-spec decode_features_reply(binary()) -> #of_features_reply{}.
+decode_features_reply(?OF_FEATURES_REPLY_PATTERN) ->
+    _ReaturesReply = #of_features_reply{
       data_path_id = DataPathId,
-      n_buffers = NBuffers,
-      n_tables = NTables,
-      capabilities = decode_capabilities
+      n_buffers    = NBuffers,
+      n_tables     = NTables,
+      capabilities = decode_capabilities(Capabilities),
+      ports        = decode_ports(Ports)
+     }.
+
+%%
+%% Internal functions.
+%%
+
+-spec decode_capabilities(binary()) -> #of_capabilities{}.
+decode_capabilities(?OF_CAPABILITIES_PATTERN) ->
+    _Capabilities = #of_capabilities{
+      flow_stats   = FlowStats,
+      table_stats  = TableStats,
+      port_stats   = PortStats,
+      group_stats  = GroupStats,
+      ip_reasm     = IpReasm,
+      queue_stats  = QueueStats,
+      arp_match_ip = ArpMatchIp
+     }.
+
+-spec decode_port_config(binary()) -> #of_port_config{}.
+decode_port_config(?OF_PORT_CONFIG_PATTERN) ->
+    _PortConfig = #of_port_config{
+      port_down    = PortDown,
+      no_recv      = NoRecv,
+      no_fwd       = NoFwd,
+      no_packet_in = NoPacketIn
+     }.
+
+-spec decode_port_state(binary()) -> #of_port_state{}.
+decode_port_state(?OF_PORT_STATE_PATTERN) ->
+    _PortState = #of_port_state{
+      link_down = LinkDown,
+      blocked   = Blocked,
+      live      = Live
+     }.
+
+-spec decode_port_features(binary()) -> #of_port_features{}.
+decode_port_features(?OF_PORT_FEATURES_PATTERN) ->
+    _PortFeatures = #of_port_features{
+      half_duplex_10_mbps  = HalfDuplex10Mbps,
+      full_duplex_10_mbps  = FullDuplex10Mbps,
+      half_duplex_100_mbps = HalfDuplex100Mbps,
+      full_duplex_100_mbps = FullDuplex100Mbps,
+      half_duplex_1_gbps   = HalfDuplex1Gbps,
+      full_duplex_1_gbps   = FullDuplex1Gbps,
+      full_duplex_10_gbps  = FullDuplex10Gbps,
+      full_duplex_40_gbps  = FullDuplex40Gbps,
+      full_duplex_100_gbps = FullDuplex100Gbps,
+      full_duplex_1_tbps   = FullDuplex1Tbps,
+      other_rate           = OtherRate,
+      copper_medium        = CopperMedium,
+      fiber_medium         = FiberMedium,
+      auto_negotiation     = AutoNegotiation,
+      pause                = Pause,
+      pause_asymetric      = PauseAsymetric
+     }.
+
+-spec decode_ports(binary()) -> [#of_port{}].
+decode_ports(Binary) ->
+    decode_ports(Binary, []).
+    
+-spec decode_ports(binary(), [#of_port{}]) -> [#of_port{}].
+decode_ports(<<>>, ParsedPorts) ->
+    ParsedPorts;
+decode_ports(?OF_PORTS_PATTERN, ParsedPorts) ->
+    Port = #of_port {
+      port_no             = PortNo,
+      hw_addr             = HwAddr,       %% TODO: Convert binary to ...
+      name                = Name,         %% TODO: Convert binary to string
+      config              = decode_port_config(Config),
+      state               = decode_port_state(State),
+      current_features    = decode_port_features(CurrentFeatures),
+      advertised_features = decode_port_features(AdvertisedFeatures),
+      supported_features  = decode_port_features(SupportedFeatures),
+      current_speed_kbps  = CurrentSpeedKbps,
+      max_speed_kbps      = MaxSpeedKbps
      },
-    {ok, FeaturesReply}.
-
-
-                          
+    decode_ports(MorePorts, [Port | ParsedPorts]).

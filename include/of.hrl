@@ -158,37 +158,38 @@
            Length  : 16,
            Xid     : 32 >>).
 
--define(OF_PORT_PATTERN,
+-define(OF_PORTS_PATTERN,
         << PortNo             : 32,
            _Pad1              : 32,
-           HwAddr             : OF_ETH_ALEN/binary-unit:8,
+           HwAddr             : ?OF_ETH_ALEN/binary-unit:8,
            _Pad2              : 16,
-           Name               : OF_MAX_PORT_NAME_LEN/binary-unit:8,
-           Config             : binary/32,
-           State              : binary/32,
-           CurrentFeatures    : binary/32,
-           AdvertisedFeatures : binary/32,
-           SupportedFeatures  : binary/32,
+           Name               : ?OF_MAX_PORT_NAME_LEN/binary-unit:8,
+           Config             : 32/binary,
+           State              : 32/binary,
+           CurrentFeatures    : 32/binary,
+           AdvertisedFeatures : 32/binary,
+           SupportedFeatures  : 32/binary,
            CurrentSpeedKbps   : 32,
-           MaxSpeedKbps       : 32 >>).
+           MaxSpeedKbps       : 32,
+           MorePorts/binary >>).
 
 -define(OF_PORT_CONFIG_PATTERN,
-        << _          : 25,
+        << _Reserved1 : 25,
            NoPacketIn : 1,
            NoFwd      : 1,
-           _          : 2,
+           _Reserved2 : 2,
            NoRecv     : 1,
-           _          : 1,
+           _Reserved3 : 1,
            PortDown   : 1 >>).
 
 -define(OF_PORT_STATE_PATTERN,
-        << _        : 29,
-           Live     : 1,
-           Blocked  : 1,
-           LinkDown : 1 >>).
+        << _Reserved : 29,
+           Live      : 1,
+           Blocked   : 1,
+           LinkDown  : 1 >>).
 
 -define(OF_PORT_FEATURES_PATTERN,
-        << _                 : 16
+        << _Reserved         : 16,
            PauseAsymetric    : 1,
            Pause             : 1,
            AutoNegotiation   : 1,
@@ -226,13 +227,13 @@
            Length       : 16,
            InPort       : 32,
            Wildcards    : 32,
-           DlSource     : OF_ETH_ALEN/binary-unit:8,
-           DlSourceMask : OF_ETH_ALEN/binary-unit:8,
-           DlDst        : OF_ETH_ALEN/binary-unit:8,
-           DlDstMask    : OF_ETH_ALEN/binary-unit:8,
+           DlSource     : ?OF_ETH_ALEN/binary-unit:8,
+           DlSourceMask : ?OF_ETH_ALEN/binary-unit:8,
+           DlDst        : ?OF_ETH_ALEN/binary-unit:8,
+           DlDstMask    : ?OF_ETH_ALEN/binary-unit:8,
            DlVlan       : 16,
            DlVlanPcp    : 8,
-           _            : 8,
+           _Pad1        : 8,
            DlType       : 16,
            NwTos        : 8,
            NwProto      : 8,
@@ -244,9 +245,20 @@
            TpDst        : 16,
            MplsLabel    : 32,
            MplsTc       : 8,
-           _            : 24,
+           _Pad2        : 24,
            MetaData     : 64,
            MetaDataMask : 64 >>).
+
+-define(OF_CAPABILITIES_PATTERN, 
+        << _Reserved1 : 24,
+           ArpMatchIp : 1,
+           QueueStats : 1,
+           IpReasm    : 1,
+           _Reserved2 : 1,
+           GroupStats : 1,
+           PortStats  : 1,
+           TableStats : 1,
+           FlowStats  : 1 >>).   
 
 -define(OF_HELLO_PATTERN,
         << _FutureExtension/binary >>).
@@ -269,25 +281,14 @@
 
 -define(OF_FEATURES_REQUEST_PATTERN, << >>).
 
--define(OF_CAPABILITIES_PATTERN, 
-        << _CapabilityReserved1 : 24,
-           CapabilityArpMatchIp : 1,
-           CapabilityQueueStats : 1,
-           CapabilityIpReasm    : 1,
-           _CapabilityReserved2 : 1
-           CapabilityGroupStats : 1,
-           CapabilityPortStats  : 1,
-           CapabilityTableStats : 1,
-           CapabilityFlowStats  : 1 >>).   
-
 -define(OF_FEATURES_REPLY_PATTERN,
         << DataPathId   : 64,
            NBuffers     : 32,
            NTables      : 8,
            _Pad         : 24,
-           Capabilities : binary/32,
+           Capabilities : 32/binary,
            _Reserved    : 32,
-           ports/binary >>).
+           Ports/binary >>).
 
 %% TODO: Continue with wildcards on page 29 of the spec
 
@@ -374,7 +375,7 @@
           name                :: string(),
           config              :: #of_port_config{},
           state               :: #of_port_state{},
-          current_featurs     :: #of_port_features{},
+          current_features    :: #of_port_features{},
           advertised_features :: #of_port_features{},
           supported_features  :: #of_port_features{},
           current_speed_kbps  :: uint32(),
