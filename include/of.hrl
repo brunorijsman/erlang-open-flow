@@ -164,11 +164,11 @@
            HwAddr             : ?OF_ETH_ALEN/binary-unit:8,
            _Pad2              : 16,
            Name               : ?OF_MAX_PORT_NAME_LEN/binary-unit:8,
-           Config             : 32/binary,
-           State              : 32/binary,
-           CurrentFeatures    : 32/binary,
-           AdvertisedFeatures : 32/binary,
-           SupportedFeatures  : 32/binary,
+           Config             : 4/binary,
+           State              : 4/binary,
+           CurrentFeatures    : 4/binary,
+           AdvertisedFeatures : 4/binary,
+           SupportedFeatures  : 4/binary,
            CurrentSpeedKbps   : 32,
            MaxSpeedKbps       : 32,
            MorePorts/binary >>).
@@ -271,8 +271,8 @@
         << _FutureExtension/binary >>).
 
 -define(OF_ERROR_PATTERN,
-        << Type : 8,
-           Code : 8,
+        << Type : 16,
+           Code : 16,
            Data/binary >>).
 
 -define(OF_ECHO_REQUEST_PATTERN,
@@ -293,7 +293,7 @@
            NBuffers     : 32,
            NTables      : 8,
            _Pad         : 24,
-           Capabilities : 32/binary,
+           Capabilities : 4/binary,
            _Reserved    : 32,
            Ports/binary >>).
 

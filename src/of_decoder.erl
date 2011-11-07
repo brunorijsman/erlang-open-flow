@@ -2,6 +2,8 @@
 %% @copyright 2011 Bruno Rijsman
 %%
 
+%% TODO: Check for correct length of binary in all decode functions
+
 -module(of_decoder).
 
 -export([decode_header/1,
@@ -22,6 +24,8 @@
 
 -include_lib("../include/of.hrl").
 
+-include_lib("../include/of_test_msgs.hrl").   %% ifdef TEST
+
 %%
 %% Exported functions.
 %%
@@ -38,9 +42,9 @@ decode_header(?OF_HEADER_PATTERN) ->
      },
     if
         (Version < ?OF_VERSION_MIN) or (Version > ?OF_VERSION_MAX) ->
-            throw({error, ?OF_ERROR_TYPE_BAD_REQUEST, ?OF_ERROR_CODE_BAD_REQUEST_BAD_VERSION});
+            throw({malformed, ?OF_ERROR_TYPE_BAD_REQUEST, ?OF_ERROR_CODE_BAD_REQUEST_BAD_VERSION});
         (Type < ?OF_MESSAGE_TYPE_MIN) or (Type > ?OF_MESSAGE_TYPE_MAX) ->
-            throw({error, ?OF_ERROR_TYPE_BAD_REQUEST, ?OF_ERROR_CODE_BAD_REQUEST_BAD_TYPE});
+            throw({malformed, ?OF_ERROR_TYPE_BAD_REQUEST, ?OF_ERROR_CODE_BAD_REQUEST_BAD_TYPE});
         true ->
             Header
     end.
@@ -109,52 +113,64 @@ decode_get_config_reply(?OF_GET_CONFIG_REPLY_PATTERN) ->
 -spec decode_capabilities(binary()) -> #of_capabilities{}.
 decode_capabilities(?OF_CAPABILITIES_PATTERN) ->
     _Capabilities = #of_capabilities{
-      flow_stats   = FlowStats,
-      table_stats  = TableStats,
-      port_stats   = PortStats,
-      group_stats  = GroupStats,
-      ip_reasm     = IpReasm,
-      queue_stats  = QueueStats,
-      arp_match_ip = ArpMatchIp
+      flow_stats   = (FlowStats == 1),
+      table_stats  = (TableStats == 1),
+      port_stats   = (PortStats == 1),
+      group_stats  = (GroupStats == 1),
+      ip_reasm     = (IpReasm == 1),
+      queue_stats  = (QueueStats == 1),
+      arp_match_ip = (ArpMatchIp == 1)
      }.
 
 -spec decode_port_config(binary()) -> #of_port_config{}.
 decode_port_config(?OF_PORT_CONFIG_PATTERN) ->
     _PortConfig = #of_port_config{
-      port_down    = PortDown,
-      no_recv      = NoRecv,
-      no_fwd       = NoFwd,
-      no_packet_in = NoPacketIn
+      port_down    = (PortDown == 1),
+      no_recv      = (NoRecv == 1),
+      no_fwd       = (NoFwd == 1),
+      no_packet_in = (NoPacketIn == 1)
      }.
 
 -spec decode_port_state(binary()) -> #of_port_state{}.
 decode_port_state(?OF_PORT_STATE_PATTERN) ->
     _PortState = #of_port_state{
-      link_down = LinkDown,
-      blocked   = Blocked,
-      live      = Live
+      link_down = (LinkDown == 1),
+      blocked   = (Blocked == 1),
+      live      = (Live == 1)
      }.
 
 -spec decode_port_features(binary()) -> #of_port_features{}.
 decode_port_features(?OF_PORT_FEATURES_PATTERN) ->
     _PortFeatures = #of_port_features{
-      half_duplex_10_mbps  = HalfDuplex10Mbps,
-      full_duplex_10_mbps  = FullDuplex10Mbps,
-      half_duplex_100_mbps = HalfDuplex100Mbps,
-      full_duplex_100_mbps = FullDuplex100Mbps,
-      half_duplex_1_gbps   = HalfDuplex1Gbps,
-      full_duplex_1_gbps   = FullDuplex1Gbps,
-      full_duplex_10_gbps  = FullDuplex10Gbps,
-      full_duplex_40_gbps  = FullDuplex40Gbps,
-      full_duplex_100_gbps = FullDuplex100Gbps,
-      full_duplex_1_tbps   = FullDuplex1Tbps,
-      other_rate           = OtherRate,
-      copper_medium        = CopperMedium,
-      fiber_medium         = FiberMedium,
-      auto_negotiation     = AutoNegotiation,
-      pause                = Pause,
-      pause_asymetric      = PauseAsymetric
+      half_duplex_10_mbps  = (HalfDuplex10Mbps == 1),
+      full_duplex_10_mbps  = (FullDuplex10Mbps == 1),
+      half_duplex_100_mbps = (HalfDuplex100Mbps == 1),
+      full_duplex_100_mbps = (FullDuplex100Mbps == 1),
+      half_duplex_1_gbps   = (HalfDuplex1Gbps == 1),
+      full_duplex_1_gbps   = (FullDuplex1Gbps == 1),
+      full_duplex_10_gbps  = (FullDuplex10Gbps == 1),
+      full_duplex_40_gbps  = (FullDuplex40Gbps == 1),
+      full_duplex_100_gbps = (FullDuplex100Gbps == 1),
+      full_duplex_1_tbps   = (FullDuplex1Tbps == 1),
+      other_rate           = (OtherRate == 1),
+      copper_medium        = (CopperMedium == 1),
+      fiber_medium         = (FiberMedium == 1),
+      auto_negotiation     = (AutoNegotiation == 1),
+      pause                = (Pause == 1),
+      pause_asymetric      = (PauseAsymetric == 1)
      }.
+
+-spec decode_string(binary()) -> string().
+decode_string(Binary) ->
+    decode_string(Binary, []).
+
+-spec decode_string(binary(), string()) -> string().
+decode_string(<<>>, Accum) ->
+    lists:reverse(Accum);
+decode_string(<< 0, _/binary>>, Accum) ->
+    lists:reverse(Accum);
+decode_string(<< Char, Rest/binary>>, Accum) ->
+    decode_string(Rest, [Char | Accum]).
 
 -spec decode_ports(binary()) -> [#of_port{}].
 decode_ports(Binary) ->
@@ -166,8 +182,8 @@ decode_ports(<<>>, ParsedPorts) ->
 decode_ports(?OF_PORTS_PATTERN, ParsedPorts) ->
     Port = #of_port {
       port_no             = PortNo,
-      hw_addr             = HwAddr,       %% TODO: Convert binary to ...
-      name                = Name,         %% TODO: Convert binary to string
+      hw_addr             = HwAddr,
+      name                = decode_string(Name),
       config              = decode_port_config(Config),
       state               = decode_port_state(State),
       current_features    = decode_port_features(CurrentFeatures),
@@ -188,17 +204,217 @@ decode_switch_config(?OF_SWITCH_CONFIG_PATTERN) ->
      }.
 
 %%
-%% Unit tests
+%% Unit tests.
 %%
 
+decode_string_no_trailing_zero_test() ->
+    Bin = << "hello" >>,
+    ActualStr = decode_string(Bin),
+    ExpectedStr = "hello",
+    ?assertEqual(ActualStr, ExpectedStr).
+
+decode_string_trailing_zero_test() ->
+    Bin = << "hello", 0, 1, 2, 3 >>,
+    ActualStr = decode_string(Bin),
+    ExpectedStr = "hello",
+    ?assertEqual(ActualStr, ExpectedStr).
+
+decode_string_only_zero_test() ->
+    Bin = << 0 >>,
+    ActualStr = decode_string(Bin),
+    ExpectedStr = "",
+    ?assertEqual(ActualStr, ExpectedStr).
+
+decode_string_empty_test() ->
+    Bin = << >>,
+    ActualStr = decode_string(Bin),
+    ExpectedStr = "",
+    ?assertEqual(ActualStr, ExpectedStr).
+
 decode_header_ok_test() ->
-    Binary = << ?OF_VERSION_2 : 8,            % Version
-                ?OF_MESSAGE_TYPE_HELLO : 8,   % Type
-                0 : 16,                       % Length
-                0 : 32 >>,                    % Xid
-    Record = #of_header{version = ?OF_VERSION_2,
-                        type    = ?OF_MESSAGE_TYPE_HELLO,
-                        length  = 0,
-                        xid     = 0},
-    ?assert(decode_header(Binary) =:= Record).
+    Bin = ?HEADER_OK_BIN,
+    ActualRec = decode_header(Bin),
+    ExpectedRec = ?HEADER_OK_REC,
+    ?assertEqual(ActualRec, ExpectedRec).
+
+decode_header_bad_version_test() ->
+    Bin = ?HEADER_BAD_VERSION_BIN,
+    ?assertThrow({malformed, 
+                  ?OF_ERROR_TYPE_BAD_REQUEST, 
+                  ?OF_ERROR_CODE_BAD_REQUEST_BAD_VERSION},
+                 decode_header(Bin)).
+
+decode_header_bad_message_type_test() ->
+    Bin = ?HEADER_BAD_MESSAGE_TYPE_BIN,
+    ?assertThrow({malformed, 
+                  ?OF_ERROR_TYPE_BAD_REQUEST, 
+                  ?OF_ERROR_CODE_BAD_REQUEST_BAD_TYPE},
+                 decode_header(Bin)).
+
+decode_hello_ok_test() ->
+    Bin = ?HELLO_OK_BIN,
+    ActualRec = decode_hello(Bin),
+    ExpectedRec = ?HELLO_OK_REC,
+    ?assertEqual(ActualRec, ExpectedRec).
+
+%% Openflow spec v1.1.0 section A.5.1: Implementations must be prepared to
+%% receive a hello message that includes a body, ignoring its contents, to
+%% allow for later extensions.
+%%
+decode_hello_long_test() ->
+    Binary = << 1, 2, 3, 4, 5 >>,
+    Record = #of_hello{},
+    ?assert(decode_hello(Binary) =:= Record).
+
+decode_error_test() ->
+    Data = << 5, 4, 3, 2, 1 >>,
+    Binary = << ?OF_ERROR_TYPE_BAD_ACTION : 16,               % Type
+                ?OF_ERROR_CODE_BAD_ACTION_BAD_OUT_PORT : 16,  % Code
+                Data/binary >>,                               % Data
+    Record = #of_error{type = ?OF_ERROR_TYPE_BAD_ACTION,
+                       code = ?OF_ERROR_CODE_BAD_ACTION_BAD_OUT_PORT,
+                       data = Data},
+    ?assert(decode_error(Binary) =:= Record).
+
+decode_echo_request_ok_test() ->
+    Binary = << 1, 1, 1, 2, 2, 2 >>,
+    Record = #of_echo_request{data = Binary},
+    ?assert(decode_echo_request(Binary) =:= Record).
+
+decode_echo_reply_ok_test() ->
+    Binary = << 3, 3, 3, 4, 4, 4 >>,
+    Record = #of_echo_reply{data = Binary},
+    ?assert(decode_echo_reply(Binary) =:= Record).
+
+decode_experimenter_ok_test() ->
+    Data = << 99, 99, 99, 88, 88, 88 >>,
+    Binary = << 1 : 32,           % Experimenter ID
+                0 : 32,           % Pad
+                Data/binary >>,   % Data
+    Record = #of_experimenter{experimenter_id = 1,
+                              data = Data},
+    ?assert(decode_experimenter(Binary) =:= Record).
+
+decode_features_request_ok_test() ->
+    Binary = <<>>,
+    Record = #of_features_request{},
+    ?assert(decode_features_request(Binary) =:= Record).
+
+decode_features_reply_ok_test() ->
+    DataPathId       = 123456789,
+    Capabilities     = << 0 : 24,                     %% Reserved
+                          1 : 1,                      %% ARP match IP
+                          0 : 1,                      %% Queue stats
+                          0 : 1,                      %% IP reassembly
+                          0 : 1,                      %% Reserved
+                          1 : 1,                      %% Group stats
+                          0 : 1,                      %% Port stats
+                          0 : 1,                      %% Table stats
+                          0 : 1 >>,                   %% Flow stats
+    Port1HwAddrBin   = << 1, 2, 3, 4, 5, 6 >>,
+    Port1NameBin     = << "port1", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 >>,
+    Port1ConfigBin   = << 0 : 25,                     %% Reserved
+                          1 : 1,                      %% No packet in
+                          1 : 1,                      %% No forward
+                          0 : 2,                      %% Reserved
+                          0 : 1,                      %% No receive
+                          0 : 1,                      %% Reserved
+                          1 : 1 >>,                   %% Port down
+    Port1StateBin    = << 0 : 29,                     %% Reserved,
+                          1 : 1,                      %% Live
+                          0 : 1,                      %% Blocked
+                          0 : 1 >>,                   %% Link down
+    Port1FeaturesBin = << 0 : 16,                     %% Reserved
+                          0 : 1,                      %% Pause asymetric
+                          0 : 1,                      %% Pause
+                          1 : 1,                      %% Auto negotiation
+                          0 : 1,                      %% Fiber medium
+                          1 : 1,                      %% Copper medium
+                          0 : 1,                      %% Other rate
+                          0 : 1,                      %% Full duplex 1 Tbps
+                          0 : 1,                      %% Full duplex 100 Gbps
+                          0 : 1,                      %% Full duplex 40 Gbps
+                          0 : 1,                      %% Full duplex 10 Gbps
+                          0 : 1,                      %% Full duplex 1 Gbps
+                          0 : 1,                      %% Half duplex 1 Gbps
+                          1 : 1,                      %% Full duplex 100 Mbps
+                          1 : 1,                      %% Half duplex 100 Mbps
+                          1 : 1,                      %% Full duplex 10 Mbps
+                          1 : 1 >>,                   %% Half duplex 10 Mbps
+    Port1Bin         = << 1            : 32,          %% Port no
+                          0            : 32,          %% Padding
+                          Port1HwAddrBin/binary,      %% Hardware address
+                          0            : 16,          %% Padding
+                          Port1NameBin/binary,        %% Name
+                          Port1ConfigBin/binary,      %% Config
+                          Port1StateBin/binary,       %% State
+                          Port1FeaturesBin/binary,    %% Current features
+                          Port1FeaturesBin/binary,    %% Advertised features
+                          Port1FeaturesBin/binary,    %% Supported features
+                          50000        : 32,          %% Current speed in kbps
+                          100000       : 32 >>,       %% Max speed in kbps
+    Port2Bin         = Port1Bin,
+    Bin              = << DataPathId   : 64,          %% Data path ID
+                          5000         : 32,          %% Number of buffers
+                          50           : 8,           %% Number of tables
+                          0            : 24,          %% Padding
+                          Capabilities/binary,        %% Capabilities
+                          0            : 32,          %% Reserved
+                          Port1Bin/binary,            %% Port 1 configuration
+                          Port2Bin/binary >>,         %% Port 2 configuration
+    CapabilitiesRec = #of_capabilities{flow_stats      = false,
+                                          table_stats  = false,
+                                          port_stats   = false,
+                                          group_stats  = true,
+                                          ip_reasm     = false,
+                                          queue_stats  = false,
+                                          arp_match_ip = true},
+    Port1ConfigRec = #of_port_config{port_down    = true,
+                                     no_recv      = false,
+                                     no_fwd       = true,
+                                     no_packet_in = true},
+    Port1StateRec = #of_port_state{link_down = false,
+                                   blocked   = false,
+                                   live      = true},
+    Port1FeaturesRec = #of_port_features{half_duplex_10_mbps  = true,
+                                         full_duplex_10_mbps  = true,
+                                         half_duplex_100_mbps = true,
+                                         full_duplex_100_mbps = true,
+                                         half_duplex_1_gbps   = false,
+                                         full_duplex_1_gbps   = false,
+                                         full_duplex_10_gbps  = false,
+                                         full_duplex_40_gbps  = false,
+                                         full_duplex_100_gbps = false,
+                                         full_duplex_1_tbps   = false,
+                                         other_rate           = false,
+                                         copper_medium        = true,
+                                         fiber_medium         = false,
+                                         auto_negotiation     = true,
+                                         pause                = false,
+                                         pause_asymetric      = false},
+    Port1Rec = #of_port{port_no             = 1,
+                        hw_addr             = Port1HwAddrBin,
+                        name                = "port1",
+                        config              = Port1ConfigRec,
+                        state               = Port1StateRec,
+                        current_features    = Port1FeaturesRec,
+                        advertised_features = Port1FeaturesRec,
+                        supported_features  = Port1FeaturesRec,
+                        current_speed_kbps  = 50000,
+                        max_speed_kbps      = 100000},
+    Port2Rec = Port1Rec,
+    Rec = #of_features_reply{data_path_id = 123456789,
+                             n_buffers    = 5000,
+                             n_tables     = 50,
+                             capabilities = CapabilitiesRec,
+                             ports        = [Port1Rec, Port2Rec]},
+    ActualRec = decode_features_reply(Bin),
+    io:format("A = ~P~n", [ActualRec, 100]),
+    io:format("R = ~P~n", [Rec, 100]),
+    ?assert(ActualRec =:= Rec).
+
+decode_get_config_request_ok_test() ->
+    Binary = <<>>,
+    Record = #of_get_config_request{},
+    ?assert(decode_get_config_request(Binary) =:= Record).
 
