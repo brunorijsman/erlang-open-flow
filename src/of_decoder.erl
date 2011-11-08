@@ -24,8 +24,6 @@
 
 -include_lib("../include/of.hrl").
 
--include_lib("../include/of_test_msgs.hrl").   %% ifdef TEST
-
 %%
 %% Exported functions.
 %%
@@ -231,190 +229,100 @@ decode_string_empty_test() ->
     ExpectedStr = "",
     ?assertEqual(ActualStr, ExpectedStr).
 
-decode_header_ok_test() ->
-    Bin = ?HEADER_OK_BIN,
+decode_header_test() ->
+    Bin = of_test_msgs:header_bin(),
     ActualRec = decode_header(Bin),
-    ExpectedRec = ?HEADER_OK_REC,
+    ExpectedRec = of_test_msgs:header_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_header_bad_version_test() ->
-    Bin = ?HEADER_BAD_VERSION_BIN,
+    Bin = of_test_msgs:header_bad_version_bin(),
     ?assertThrow({malformed, 
                   ?OF_ERROR_TYPE_BAD_REQUEST, 
                   ?OF_ERROR_CODE_BAD_REQUEST_BAD_VERSION},
                  decode_header(Bin)).
 
 decode_header_bad_message_type_test() ->
-    Bin = ?HEADER_BAD_MESSAGE_TYPE_BIN,
+    Bin = of_test_msgs:header_bad_message_type_bin(),
     ?assertThrow({malformed, 
                   ?OF_ERROR_TYPE_BAD_REQUEST, 
                   ?OF_ERROR_CODE_BAD_REQUEST_BAD_TYPE},
                  decode_header(Bin)).
 
-decode_hello_ok_test() ->
-    Bin = ?HELLO_OK_BIN,
+decode_hello_test() ->
+    Bin = of_test_msgs:hello_bin(),
     ActualRec = decode_hello(Bin),
-    ExpectedRec = ?HELLO_OK_REC,
+    ExpectedRec = of_test_msgs:hello_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
-%% Openflow spec v1.1.0 section A.5.1: Implementations must be prepared to
-%% receive a hello message that includes a body, ignoring its contents, to
-%% allow for later extensions.
-%%
-decode_hello_long_test() ->
-    Binary = << 1, 2, 3, 4, 5 >>,
-    Record = #of_hello{},
-    ?assert(decode_hello(Binary) =:= Record).
+decode_hello_with_extension_test() ->
+    Bin = of_test_msgs:hello_with_extension_bin(),
+    ActualRec = decode_hello(Bin),
+    ExpectedRec = of_test_msgs:hello_with_extension_rec(),
+    ?assertEqual(ActualRec, ExpectedRec).
 
 decode_error_test() ->
-    Data = << 5, 4, 3, 2, 1 >>,
-    Binary = << ?OF_ERROR_TYPE_BAD_ACTION : 16,               % Type
-                ?OF_ERROR_CODE_BAD_ACTION_BAD_OUT_PORT : 16,  % Code
-                Data/binary >>,                               % Data
-    Record = #of_error{type = ?OF_ERROR_TYPE_BAD_ACTION,
-                       code = ?OF_ERROR_CODE_BAD_ACTION_BAD_OUT_PORT,
-                       data = Data},
-    ?assert(decode_error(Binary) =:= Record).
+    Bin = of_test_msgs:error_bin(),
+    ActualRec = decode_error(Bin),
+    ExpectedRec = of_test_msgs:error_rec(),
+    ?assertEqual(ActualRec, ExpectedRec).
 
-decode_echo_request_ok_test() ->
-    Binary = << 1, 1, 1, 2, 2, 2 >>,
-    Record = #of_echo_request{data = Binary},
-    ?assert(decode_echo_request(Binary) =:= Record).
+decode_error_with_data_test() ->
+    Bin = of_test_msgs:error_with_data_bin(),
+    ActualRec = decode_error(Bin),
+    ExpectedRec = of_test_msgs:error_with_data_rec(),
+    ?assertEqual(ActualRec, ExpectedRec).
 
-decode_echo_reply_ok_test() ->
-    Binary = << 3, 3, 3, 4, 4, 4 >>,
-    Record = #of_echo_reply{data = Binary},
-    ?assert(decode_echo_reply(Binary) =:= Record).
+decode_echo_request_test() ->
+    Bin = of_test_msgs:echo_request_bin(),
+    ActualRec = decode_echo_request(Bin),
+    ExpectedRec = of_test_msgs:echo_request_rec(),
+    ?assertEqual(ActualRec, ExpectedRec).
 
-decode_experimenter_ok_test() ->
-    Data = << 99, 99, 99, 88, 88, 88 >>,
-    Binary = << 1 : 32,           % Experimenter ID
-                0 : 32,           % Pad
-                Data/binary >>,   % Data
-    Record = #of_experimenter{experimenter_id = 1,
-                              data = Data},
-    ?assert(decode_experimenter(Binary) =:= Record).
+decode_echo_request_with_data_test() ->
+    Bin = of_test_msgs:echo_request_with_data_bin(),
+    ActualRec = decode_echo_request(Bin),
+    ExpectedRec = of_test_msgs:echo_request_with_data_rec(),
+    ?assertEqual(ActualRec, ExpectedRec).
 
-decode_features_request_ok_test() ->
-    Binary = <<>>,
-    Record = #of_features_request{},
-    ?assert(decode_features_request(Binary) =:= Record).
+decode_echo_reply_test() ->
+    Bin = of_test_msgs:echo_reply_bin(),
+    ActualRec = decode_echo_reply(Bin),
+    ExpectedRec = of_test_msgs:echo_reply_rec(),
+    ?assertEqual(ActualRec, ExpectedRec).
 
-decode_features_reply_ok_test() ->
-    DataPathId       = 123456789,
-    Capabilities     = << 0 : 24,                     %% Reserved
-                          1 : 1,                      %% ARP match IP
-                          0 : 1,                      %% Queue stats
-                          0 : 1,                      %% IP reassembly
-                          0 : 1,                      %% Reserved
-                          1 : 1,                      %% Group stats
-                          0 : 1,                      %% Port stats
-                          0 : 1,                      %% Table stats
-                          0 : 1 >>,                   %% Flow stats
-    Port1HwAddrBin   = << 1, 2, 3, 4, 5, 6 >>,
-    Port1NameBin     = << "port1", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 >>,
-    Port1ConfigBin   = << 0 : 25,                     %% Reserved
-                          1 : 1,                      %% No packet in
-                          1 : 1,                      %% No forward
-                          0 : 2,                      %% Reserved
-                          0 : 1,                      %% No receive
-                          0 : 1,                      %% Reserved
-                          1 : 1 >>,                   %% Port down
-    Port1StateBin    = << 0 : 29,                     %% Reserved,
-                          1 : 1,                      %% Live
-                          0 : 1,                      %% Blocked
-                          0 : 1 >>,                   %% Link down
-    Port1FeaturesBin = << 0 : 16,                     %% Reserved
-                          0 : 1,                      %% Pause asymetric
-                          0 : 1,                      %% Pause
-                          1 : 1,                      %% Auto negotiation
-                          0 : 1,                      %% Fiber medium
-                          1 : 1,                      %% Copper medium
-                          0 : 1,                      %% Other rate
-                          0 : 1,                      %% Full duplex 1 Tbps
-                          0 : 1,                      %% Full duplex 100 Gbps
-                          0 : 1,                      %% Full duplex 40 Gbps
-                          0 : 1,                      %% Full duplex 10 Gbps
-                          0 : 1,                      %% Full duplex 1 Gbps
-                          0 : 1,                      %% Half duplex 1 Gbps
-                          1 : 1,                      %% Full duplex 100 Mbps
-                          1 : 1,                      %% Half duplex 100 Mbps
-                          1 : 1,                      %% Full duplex 10 Mbps
-                          1 : 1 >>,                   %% Half duplex 10 Mbps
-    Port1Bin         = << 1            : 32,          %% Port no
-                          0            : 32,          %% Padding
-                          Port1HwAddrBin/binary,      %% Hardware address
-                          0            : 16,          %% Padding
-                          Port1NameBin/binary,        %% Name
-                          Port1ConfigBin/binary,      %% Config
-                          Port1StateBin/binary,       %% State
-                          Port1FeaturesBin/binary,    %% Current features
-                          Port1FeaturesBin/binary,    %% Advertised features
-                          Port1FeaturesBin/binary,    %% Supported features
-                          50000        : 32,          %% Current speed in kbps
-                          100000       : 32 >>,       %% Max speed in kbps
-    Port2Bin         = Port1Bin,
-    Bin              = << DataPathId   : 64,          %% Data path ID
-                          5000         : 32,          %% Number of buffers
-                          50           : 8,           %% Number of tables
-                          0            : 24,          %% Padding
-                          Capabilities/binary,        %% Capabilities
-                          0            : 32,          %% Reserved
-                          Port1Bin/binary,            %% Port 1 configuration
-                          Port2Bin/binary >>,         %% Port 2 configuration
-    CapabilitiesRec = #of_capabilities{flow_stats      = false,
-                                          table_stats  = false,
-                                          port_stats   = false,
-                                          group_stats  = true,
-                                          ip_reasm     = false,
-                                          queue_stats  = false,
-                                          arp_match_ip = true},
-    Port1ConfigRec = #of_port_config{port_down    = true,
-                                     no_recv      = false,
-                                     no_fwd       = true,
-                                     no_packet_in = true},
-    Port1StateRec = #of_port_state{link_down = false,
-                                   blocked   = false,
-                                   live      = true},
-    Port1FeaturesRec = #of_port_features{half_duplex_10_mbps  = true,
-                                         full_duplex_10_mbps  = true,
-                                         half_duplex_100_mbps = true,
-                                         full_duplex_100_mbps = true,
-                                         half_duplex_1_gbps   = false,
-                                         full_duplex_1_gbps   = false,
-                                         full_duplex_10_gbps  = false,
-                                         full_duplex_40_gbps  = false,
-                                         full_duplex_100_gbps = false,
-                                         full_duplex_1_tbps   = false,
-                                         other_rate           = false,
-                                         copper_medium        = true,
-                                         fiber_medium         = false,
-                                         auto_negotiation     = true,
-                                         pause                = false,
-                                         pause_asymetric      = false},
-    Port1Rec = #of_port{port_no             = 1,
-                        hw_addr             = Port1HwAddrBin,
-                        name                = "port1",
-                        config              = Port1ConfigRec,
-                        state               = Port1StateRec,
-                        current_features    = Port1FeaturesRec,
-                        advertised_features = Port1FeaturesRec,
-                        supported_features  = Port1FeaturesRec,
-                        current_speed_kbps  = 50000,
-                        max_speed_kbps      = 100000},
-    Port2Rec = Port1Rec,
-    Rec = #of_features_reply{data_path_id = 123456789,
-                             n_buffers    = 5000,
-                             n_tables     = 50,
-                             capabilities = CapabilitiesRec,
-                             ports        = [Port1Rec, Port2Rec]},
+decode_echo_reply_with_data_test() ->
+    Bin = of_test_msgs:echo_reply_with_data_bin(),
+    ActualRec = decode_echo_reply(Bin),
+    ExpectedRec = of_test_msgs:echo_reply_with_data_rec(),
+    ?assertEqual(ActualRec, ExpectedRec).
+
+decode_experimenter_test() ->
+    Bin = of_test_msgs:experimenter_bin(),
+    ActualRec = decode_experimenter(Bin),
+    ExpectedRec = of_test_msgs:experimenter_rec(),
+    ?assertEqual(ActualRec, ExpectedRec).
+
+decode_experimenter_with_data_test() ->
+    Bin = of_test_msgs:experimenter_with_data_bin(),
+    ActualRec = decode_experimenter(Bin),
+    ExpectedRec = of_test_msgs:experimenter_with_data_rec(),
+    ?assertEqual(ActualRec, ExpectedRec).
+
+decode_features_request_test() ->
+    Bin = of_test_msgs:features_request_bin(),
+    ActualRec = decode_features_request(Bin),
+    ExpectedRec = of_test_msgs:features_request_rec(),
+    ?assertEqual(ActualRec, ExpectedRec).
+
+decode_features_reply_test() ->
+    Bin = of_test_msgs:features_reply_bin(),
     ActualRec = decode_features_reply(Bin),
-    io:format("A = ~P~n", [ActualRec, 100]),
-    io:format("R = ~P~n", [Rec, 100]),
-    ?assert(ActualRec =:= Rec).
+    ExpectedRec = of_test_msgs:features_reply_rec(),
+    ?assertEqual(ActualRec, ExpectedRec).
 
-decode_get_config_request_ok_test() ->
-    Binary = <<>>,
-    Record = #of_get_config_request{},
-    ?assert(decode_get_config_request(Binary) =:= Record).
-
+decode_get_config_request_test() ->
+    Bin = of_test_msgs:get_config_request_bin(),
+    ActualRec = decode_get_config_request(Bin),
+    ExpectedRec = of_test_msgs:get_config_request_rec(),
+    ?assertEqual(ActualRec, ExpectedRec).
