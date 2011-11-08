@@ -418,4 +418,10 @@
 -record(of_get_config_reply, {
           switch_config :: #of_switch_config{} }).
 
+%% TODO: Add missing messages
+-type of_message() :: #of_hello{} |
+                      #of_error{} |
+                      #of_echo_request{} |
+                      #of_echo_reply{}.
+
 -endif.

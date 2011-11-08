@@ -16,15 +16,15 @@ COVER_ERL = 'case of_cover:coverage_dir("src", "cover") of  \
                  halt(1)                                    \
              end.'
 
-all: compile test cover
+all: compile test_with_coverage
 
 compile: ebin
 	@${ERL} -noinput -eval ${MAKE_ERL}
 
-test: compile
+test_only: compile
 	@${ERL} -noshell -pa ebin -eval ${TEST_ERL} -s init stop
 
-cover: compile
+test_with_coverage: compile
 	@mkdir -p cover
 	@cp src/style.css cover/style.css
 	@${ERL} -noshell -pa ebin -eval ${COVER_ERL} -s init stop

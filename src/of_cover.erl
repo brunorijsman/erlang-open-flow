@@ -1,47 +1,42 @@
 %% @author Bruno Rijsman <brunorijsman@hotmail.com>
 %% @copyright 2011 Bruno Rijsman
 
+%% TODO: Add type checking
+%% TODO: Add support for 'excempt files' (e.g. of_cover itself)
+%% TODO: Add total coverage at bottom of table
+%% TODO: Report when generated
+%% TODO: Report unit test details (error messages, run time, etc.)
+%% TODO: Add color coding (green for pass, red for fail)
+%% TODO: Coverage counts are statements, not lines
+
 -module(of_cover).
 
 -export([coverage_dir/2]).
 
+-record(test_result, {
+          module,
+          test_result}).
+          
+-record(coverage_result, {
+          module,
+          lines_covered,
+          lines_not_covered,
+          coverage_html_file}).
+
+-record(combined_result, {
+          module,
+          test_result,
+          lines_covered,
+          lines_not_covered,
+          coverage_html_file}).
+
 coverage_dir(SourceCodeDir, OutputDir) ->
     delete_html_files(OutputDir),
     {ok, ErrorFiles, Modules} = instrument(SourceCodeDir),
+    TestResults = lists:map(fun test_module/1, Modules),
     CoverageResults = lists:map(fun coverage_module/1, Modules),
-    generate_html(OutputDir, ErrorFiles, CoverageResults).
-
-coverage_module(Module) ->
-    case erlang:function_exported(Module, test, 0) of
-        true -> 
-            coverage_module_with_test(Module);
-        false -> 
-            coverage_module_without_test(Module)
-    end.
-
-coverage_module_without_test(Module) ->
-    {Module, "Module does not have unit test", undefined}.
-
-coverage_module_with_test(Module) ->
-    case Module:test() of
-        ok ->
-            coverage_module_with_passed_test(Module);
-        error ->
-            coverage_module_with_failed_test(Module)
-    end.
-
-coverage_module_with_failed_test(Module) ->
-    {Module, "Module failed unit test", undefined}.
-
-coverage_module_with_passed_test(Module) ->
-    {ok, {Module, {Cov, NotCov}}} = cover:analyse(Module, module),
-    Total = Cov + NotCov,
-    Result = case Total of
-                 0 -> "No code in module";
-                 _ -> io_lib:format("~w %", [round(100.0 * Cov / Total)])
-             end,
-    {ok, HtmlFile} = cover:analyse_to_file(Module, [html]),
-    {Module, Result, HtmlFile}.
+    CombinedResults = combine_results(Modules, TestResults, CoverageResults),
+    generate_html(OutputDir, ErrorFiles, CombinedResults).
 
 delete_html_files(OutputDir) ->
     {ok, AllFiles} = file:list_dir(OutputDir),
@@ -65,12 +60,63 @@ instrument(SourceCodeDir) ->
     Modules = [Module || {ok, Module} <- CompileResult ],
     {ok, ErrorFiles, Modules}.
 
-generate_html(OutputDir, ErrorFiles, CoverageResults) ->
+test_module(Module) ->
+    case erlang:function_exported(Module, test, 0) of
+        true -> 
+            test_module_with_test(Module);
+        false -> 
+            test_module_without_test(Module)
+    end.
+
+test_module_without_test(Module) ->
+    #test_result{module = Module, test_result = "Module does not have unit test"}.
+
+test_module_with_test(Module) ->
+    case Module:test() of
+        ok ->
+            #test_result{module = Module, test_result = "Pass"};
+        error ->
+            #test_result{module = Module, test_result = "Fail"}
+    end.
+
+coverage_module(Module) ->
+    {ok, {Module, {LinesCovered, LinesNotCovered}}} = cover:analyse(Module, module),
+    {ok, CoverageHtmlFile} = cover:analyse_to_file(Module, [html]),
+    #coverage_result{module = Module, 
+                     lines_covered = LinesCovered, 
+                     lines_not_covered = LinesNotCovered,
+                     coverage_html_file = CoverageHtmlFile}.
+
+combine_results(Modules, TestResults, CoverageResults) ->
+    lists:map(fun (Module) ->
+                      combine_module_results(Module, 
+                                             TestResults, 
+                                             CoverageResults)
+              end, 
+              Modules).
+
+combine_module_results(Module, TestResults, CoverageResults) ->
+    TestResult = lists:keyfind(Module, #test_result.module, TestResults),
+    CoverageResult = lists:keyfind(Module, #coverage_result.module, CoverageResults),
+    #combined_result{module             = Module,
+                     test_result        = TestResult#test_result.test_result,
+                     lines_covered      = CoverageResult#coverage_result.lines_covered,
+                     lines_not_covered  = CoverageResult#coverage_result.lines_not_covered,
+                     coverage_html_file = CoverageResult#coverage_result.coverage_html_file}.
+
+percent_coverage(LinesCovered, LinesNotCovered) ->
+    TotalLines = LinesCovered + LinesNotCovered,
+    case TotalLines of
+        0 -> "-";
+        _ -> io_lib:format("~w %", [round(100.0 * LinesCovered / TotalLines)])
+    end.
+
+generate_html(OutputDir, ErrorFiles, CombinedResults) ->
     FileName = OutputDir ++ "/summary.html",
     {ok, IoDevice} = file:open(FileName, [write]),
     ok = io:format(IoDevice, "<html>~n", []),
     ok = generate_html_head(IoDevice),
-    ok = generate_html_body(IoDevice, ErrorFiles, CoverageResults),
+    ok = generate_html_body(IoDevice, ErrorFiles, CombinedResults),
     ok = io:format(IoDevice, "</html>~n", []),
     ok = file:close(IoDevice),
     ok.
@@ -95,10 +141,10 @@ generate_html_css_link(IoDevice) ->
                    "href=\"style.css\" />~n", []),
     ok.
 
-generate_html_body(IoDevice, ErrorFiles, CoverageResults) ->
+generate_html_body(IoDevice, ErrorFiles, CombinedResults) ->
     ok = io:format(IoDevice, "<body>~n", []),
-    ok = io:format(IoDevice, "<h1>Openflow unit-test coverage summary</h1>~n", []),
-    ok = generate_html_results_table(IoDevice, CoverageResults),
+    ok = io:format(IoDevice, "<h1>Openflow unit-test summary</h1>~n", []),
+    ok = generate_html_results_table(IoDevice, CombinedResults),
     case ErrorFiles of
         [] -> ok;
         _  -> ok = generate_html_compile_errors_table(IoDevice, ErrorFiles)
@@ -106,28 +152,40 @@ generate_html_body(IoDevice, ErrorFiles, CoverageResults) ->
     ok = io:format(IoDevice, "</body>~n", []),
     ok.
     
-generate_html_results_table(IoDevice, CoverageResults) ->
+generate_html_results_table(IoDevice, CombinedResults) ->
     ok = io:format(IoDevice, "<h2>Results</h2>~n", []),
     ok = io:format(IoDevice, "<table>~n", []),
     ok = io:format(IoDevice, "<tr>~n", []),
     ok = io:format(IoDevice, "<th>Module</th>~n", []),
-    ok = io:format(IoDevice, "<th>Coverage</th>~n", []),
-    ok = io:format(IoDevice, "<th>Details</th>~n", []),
+    ok = io:format(IoDevice, "<th>Unit test result</th>~n", []),
+    ok = io:format(IoDevice, "<th>Lines covered</th>~n", []),
+    ok = io:format(IoDevice, "<th>Lines not covered</th>~n", []),
+    ok = io:format(IoDevice, "<th>Coverage percentage</th>~n", []),
+    ok = io:format(IoDevice, "<th>Coverage details</th>~n", []),
     ok = io:format(IoDevice, "</tr>~n", []),
-    lists:foreach(fun(Result) -> 
-                          generate_html_results_table_row(IoDevice, Result) 
+    lists:foreach(fun(CoverageResult) -> 
+                          generate_html_results_table_row(IoDevice, CoverageResult) 
                   end, 
-                  CoverageResults),
+                  CombinedResults),
     ok = io:format(IoDevice, "</table>~n", []),
     ok.
 
-generate_html_results_table_row(IoDevice, {Module, Result, DetailFile}) ->
+generate_html_results_table_row(IoDevice, CombinedResult) ->
+    #combined_result{module             = Module,
+                     test_result        = TestResult,
+                     lines_covered      = LinesCovered,
+                     lines_not_covered  = LinesNotCovered,
+                     coverage_html_file = CoverageHtmlFile} = CombinedResult,
+    PercentCoverage = percent_coverage(LinesCovered, LinesNotCovered),
     ok = io:format(IoDevice, "<tr>~n", []),
     ok = io:format(IoDevice, "<td>~w</td>~n", [Module]),
-    ok = io:format(IoDevice, "<td>~s</td>~n", [Result]),
-    case DetailFile of
+    ok = io:format(IoDevice, "<td>~s</td>~n", [TestResult]),
+    ok = io:format(IoDevice, "<td>~w</td>~n", [LinesCovered]),
+    ok = io:format(IoDevice, "<td>~w</td>~n", [LinesNotCovered]),
+    ok = io:format(IoDevice, "<td>~s</td>~n", [PercentCoverage]),
+    case CoverageHtmlFile of
         undefined ->
-            ok = io:format(IoDevice, "<td>not available</td>~n", []);
+            ok = io:format(IoDevice, "<td>Not available</td>~n", []);
         _ ->
             ok = io:format(IoDevice, "<td><a href=\"~s.COVER.html\">here</a></td>", 
                            [Module])
