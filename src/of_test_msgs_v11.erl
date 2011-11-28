@@ -2,7 +2,7 @@
 %% @copyright 2011 Bruno Rijsman
 %%
 
--module(of_test_msgs).
+-module(of_test_msgs_v11).
 
 -export([header_bin/0,
          header_rec/0,
@@ -35,7 +35,7 @@
          get_config_request_bin/0,
          get_config_request_rec/0]).
 
--include_lib("../include/of.hrl").
+-include_lib("../include/of_protocol_v11.hrl").
 
 %%
 %% Exported functions.

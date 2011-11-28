@@ -18,6 +18,8 @@ COVER_ERL = 'case of_cover:coverage_dir("src", "cover") of  \
 
 all: compile test_with_coverage
 
+all_targets: compile test_only test_with_coverage
+
 compile: ebin
 	@${ERL} -noinput -eval ${MAKE_ERL}
 

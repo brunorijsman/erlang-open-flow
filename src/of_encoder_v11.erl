@@ -1,14 +1,14 @@
 %% @author Bruno Rijsman <brunorijsman@hotmail.com>
 %% @copyright 2011 Bruno Rijsman
 
--module(of_encoder).
+-module(of_encoder_v11).
 
 -export([encode/2]).
 
 %% TODO: ifdef TEST everywhere?
 -include_lib("eunit/include/eunit.hrl").
 
--include_lib("../include/of.hrl").   
+-include_lib("../include/of_protocol_v11.hrl").   
 
 %%
 %% Exported functions.
@@ -66,31 +66,31 @@ encode_body(EchoReply)
 %%
     
 encode_header_test() ->
-    Rec = of_test_msgs:header_rec(),
+    Rec = of_test_msgs_v11:header_rec(),
     ActualResult = encode_header(Rec),
-    ExpectedResult = of_test_msgs:header_bin(),
+    ExpectedResult = of_test_msgs_v11:header_bin(),
     ?assert(ActualResult =:= ExpectedResult).
 
 encode_hello_body_test() ->
-    Rec = of_test_msgs:hello_rec(),
+    Rec = of_test_msgs_v11:hello_rec(),
     ActualResult = encode_body(Rec),
-    ExpectedResult = {?OF_MESSAGE_TYPE_HELLO, of_test_msgs:hello_bin()},
+    ExpectedResult = {?OF_MESSAGE_TYPE_HELLO, of_test_msgs_v11:hello_bin()},
     ?assert(ActualResult =:= ExpectedResult).
     
 encode_error_body_test() ->
-    Rec = of_test_msgs:error_rec(),
+    Rec = of_test_msgs_v11:error_rec(),
     ActualResult = encode_body(Rec),
-    ExpectedResult = {?OF_MESSAGE_TYPE_ERROR, of_test_msgs:error_bin()},
+    ExpectedResult = {?OF_MESSAGE_TYPE_ERROR, of_test_msgs_v11:error_bin()},
     ?assert(ActualResult =:= ExpectedResult).
 
 encode_echo_request_body_test() ->
-    Rec = of_test_msgs:echo_request_rec(),
+    Rec = of_test_msgs_v11:echo_request_rec(),
     ActualResult = encode_body(Rec),
-    ExpectedResult = {?OF_MESSAGE_TYPE_ECHO_REQUEST, of_test_msgs:echo_request_bin()},
+    ExpectedResult = {?OF_MESSAGE_TYPE_ECHO_REQUEST, of_test_msgs_v11:echo_request_bin()},
     ?assert(ActualResult =:= ExpectedResult).
 
 encode_echo_reply_body_test() ->
-    Rec = of_test_msgs:echo_reply_rec(),
+    Rec = of_test_msgs_v11:echo_reply_rec(),
     ActualResult = encode_body(Rec),
-    ExpectedResult = {?OF_MESSAGE_TYPE_ECHO_REPLY, of_test_msgs:echo_reply_bin()},
+    ExpectedResult = {?OF_MESSAGE_TYPE_ECHO_REPLY, of_test_msgs_v11:echo_reply_bin()},
     ?assert(ActualResult =:= ExpectedResult).

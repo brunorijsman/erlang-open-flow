@@ -20,7 +20,7 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
--include_lib("../include/of.hrl").
+-include_lib("../include/of_protocol_v11.hrl").
 
 -record(of_connection_state, {
           state,

@@ -4,7 +4,7 @@
 
 %% TODO: Check for correct length of binary in all decode functions
 
--module(of_decoder).
+-module(of_decoder_v11).
 
 -export([decode_header/1,
          decode_hello/1,
@@ -22,7 +22,7 @@
 %% TODO: Specify the search path
 %% TODO: Emacs indentation for single percent (%) comments is broken
 
--include_lib("../include/of.hrl").
+-include_lib("../include/of_protocol_v11.hrl").
 
 %%
 %% Exported functions.
@@ -230,99 +230,99 @@ decode_string_empty_test() ->
     ?assertEqual(ActualStr, ExpectedStr).
 
 decode_header_test() ->
-    Bin = of_test_msgs:header_bin(),
+    Bin = of_test_msgs_v11:header_bin(),
     ActualRec = decode_header(Bin),
-    ExpectedRec = of_test_msgs:header_rec(),
+    ExpectedRec = of_test_msgs_v11:header_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_header_bad_version_test() ->
-    Bin = of_test_msgs:header_bad_version_bin(),
+    Bin = of_test_msgs_v11:header_bad_version_bin(),
     ?assertThrow({malformed, 
                   ?OF_ERROR_TYPE_BAD_REQUEST, 
                   ?OF_ERROR_CODE_BAD_REQUEST_BAD_VERSION},
                  decode_header(Bin)).
 
 decode_header_bad_message_type_test() ->
-    Bin = of_test_msgs:header_bad_message_type_bin(),
+    Bin = of_test_msgs_v11:header_bad_message_type_bin(),
     ?assertThrow({malformed, 
                   ?OF_ERROR_TYPE_BAD_REQUEST, 
                   ?OF_ERROR_CODE_BAD_REQUEST_BAD_TYPE},
                  decode_header(Bin)).
 
 decode_hello_test() ->
-    Bin = of_test_msgs:hello_bin(),
+    Bin = of_test_msgs_v11:hello_bin(),
     ActualRec = decode_hello(Bin),
-    ExpectedRec = of_test_msgs:hello_rec(),
+    ExpectedRec = of_test_msgs_v11:hello_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_hello_with_extension_test() ->
-    Bin = of_test_msgs:hello_with_extension_bin(),
+    Bin = of_test_msgs_v11:hello_with_extension_bin(),
     ActualRec = decode_hello(Bin),
-    ExpectedRec = of_test_msgs:hello_with_extension_rec(),
+    ExpectedRec = of_test_msgs_v11:hello_with_extension_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_error_test() ->
-    Bin = of_test_msgs:error_bin(),
+    Bin = of_test_msgs_v11:error_bin(),
     ActualRec = decode_error(Bin),
-    ExpectedRec = of_test_msgs:error_rec(),
+    ExpectedRec = of_test_msgs_v11:error_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_error_with_data_test() ->
-    Bin = of_test_msgs:error_with_data_bin(),
+    Bin = of_test_msgs_v11:error_with_data_bin(),
     ActualRec = decode_error(Bin),
-    ExpectedRec = of_test_msgs:error_with_data_rec(),
+    ExpectedRec = of_test_msgs_v11:error_with_data_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_echo_request_test() ->
-    Bin = of_test_msgs:echo_request_bin(),
+    Bin = of_test_msgs_v11:echo_request_bin(),
     ActualRec = decode_echo_request(Bin),
-    ExpectedRec = of_test_msgs:echo_request_rec(),
+    ExpectedRec = of_test_msgs_v11:echo_request_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_echo_request_with_data_test() ->
-    Bin = of_test_msgs:echo_request_with_data_bin(),
+    Bin = of_test_msgs_v11:echo_request_with_data_bin(),
     ActualRec = decode_echo_request(Bin),
-    ExpectedRec = of_test_msgs:echo_request_with_data_rec(),
+    ExpectedRec = of_test_msgs_v11:echo_request_with_data_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_echo_reply_test() ->
-    Bin = of_test_msgs:echo_reply_bin(),
+    Bin = of_test_msgs_v11:echo_reply_bin(),
     ActualRec = decode_echo_reply(Bin),
-    ExpectedRec = of_test_msgs:echo_reply_rec(),
+    ExpectedRec = of_test_msgs_v11:echo_reply_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_echo_reply_with_data_test() ->
-    Bin = of_test_msgs:echo_reply_with_data_bin(),
+    Bin = of_test_msgs_v11:echo_reply_with_data_bin(),
     ActualRec = decode_echo_reply(Bin),
-    ExpectedRec = of_test_msgs:echo_reply_with_data_rec(),
+    ExpectedRec = of_test_msgs_v11:echo_reply_with_data_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_experimenter_test() ->
-    Bin = of_test_msgs:experimenter_bin(),
+    Bin = of_test_msgs_v11:experimenter_bin(),
     ActualRec = decode_experimenter(Bin),
-    ExpectedRec = of_test_msgs:experimenter_rec(),
+    ExpectedRec = of_test_msgs_v11:experimenter_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_experimenter_with_data_test() ->
-    Bin = of_test_msgs:experimenter_with_data_bin(),
+    Bin = of_test_msgs_v11:experimenter_with_data_bin(),
     ActualRec = decode_experimenter(Bin),
-    ExpectedRec = of_test_msgs:experimenter_with_data_rec(),
+    ExpectedRec = of_test_msgs_v11:experimenter_with_data_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_features_request_test() ->
-    Bin = of_test_msgs:features_request_bin(),
+    Bin = of_test_msgs_v11:features_request_bin(),
     ActualRec = decode_features_request(Bin),
-    ExpectedRec = of_test_msgs:features_request_rec(),
+    ExpectedRec = of_test_msgs_v11:features_request_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_features_reply_test() ->
-    Bin = of_test_msgs:features_reply_bin(),
+    Bin = of_test_msgs_v11:features_reply_bin(),
     ActualRec = decode_features_reply(Bin),
-    ExpectedRec = of_test_msgs:features_reply_rec(),
+    ExpectedRec = of_test_msgs_v11:features_reply_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_get_config_request_test() ->
-    Bin = of_test_msgs:get_config_request_bin(),
+    Bin = of_test_msgs_v11:get_config_request_bin(),
     ActualRec = decode_get_config_request(Bin),
-    ExpectedRec = of_test_msgs:get_config_request_rec(),
+    ExpectedRec = of_test_msgs_v11:get_config_request_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
