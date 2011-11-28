@@ -152,6 +152,8 @@
 %% Maximum length of a port name (inluding terminating null character)
 -define(OF_MAX_PORT_NAME_LEN, 16).
 
+-define(OF_HEADER_LEN, 8).
+
 -define(OF_HEADER_PATTERN,
         << Version : 8,
            Type    : 8,
