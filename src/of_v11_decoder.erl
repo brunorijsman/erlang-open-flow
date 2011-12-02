@@ -4,7 +4,7 @@
 
 %% TODO: Check for correct length of binary in all decode functions
 
--module(of_decoder_v11).
+-module(of_v11_decoder).
 
 -export([decode_header/1,
          decode_hello/1,
@@ -22,7 +22,8 @@
 %% TODO: Specify the search path
 %% TODO: Emacs indentation for single percent (%) comments is broken
 
--include_lib("../include/of_protocol_v11.hrl").
+-include_lib("../include/of.hrl").
+-include_lib("../include/of_v11.hrl").
 
 %%
 %% Exported functions.
@@ -30,63 +31,63 @@
 
 %% TODO: Validate length?
 %% TODO: Validate xid?
--spec decode_header(binary()) -> #of_header{}.
-decode_header(?OF_HEADER_PATTERN) ->
-    Header = #of_header{
+-spec decode_header(binary()) -> #of_v11_header{}.
+decode_header(?OF_V11_HEADER_PATTERN) ->
+    Header = #of_v11_header{
       version = Version,
       type    = Type,
       length  = Length,
       xid     = Xid
      },
     if
-        (Version < ?OF_VERSION_MIN) or (Version > ?OF_VERSION_MAX) ->
-            throw({malformed, ?OF_ERROR_TYPE_BAD_REQUEST, ?OF_ERROR_CODE_BAD_REQUEST_BAD_VERSION});
-        (Type < ?OF_MESSAGE_TYPE_MIN) or (Type > ?OF_MESSAGE_TYPE_MAX) ->
-            throw({malformed, ?OF_ERROR_TYPE_BAD_REQUEST, ?OF_ERROR_CODE_BAD_REQUEST_BAD_TYPE});
+        Version /= ?OF_V11_VERSION ->
+            throw({malformed, ?OF_V11_ERROR_TYPE_BAD_REQUEST, ?OF_V11_ERROR_CODE_BAD_REQUEST_BAD_VERSION});
+        (Type < ?OF_V11_MESSAGE_TYPE_MIN) or (Type > ?OF_V11_MESSAGE_TYPE_MAX) ->
+            throw({malformed, ?OF_V11_ERROR_TYPE_BAD_REQUEST, ?OF_V11_ERROR_CODE_BAD_REQUEST_BAD_TYPE});
         true ->
             Header
     end.
 
--spec decode_hello(binary()) -> #of_hello{}.
-decode_hello(?OF_HELLO_PATTERN) ->
-    _Hello = #of_hello{}.
+-spec decode_hello(binary()) -> #of_v11_hello{}.
+decode_hello(?OF_V11_HELLO_PATTERN) ->
+    _Hello = #of_v11_hello{}.
 
--spec decode_error(binary()) -> #of_error{}.
-decode_error(?OF_ERROR_PATTERN) ->
+-spec decode_error(binary()) -> #of_v11_error{}.
+decode_error(?OF_V11_ERROR_PATTERN) ->
     %% No validation, accept unrecognized types and codes.
-    _Error = #of_error{
+    _Error = #of_v11_error{
       type = Type,
       code = Code,
       data = Data
      }.
 
--spec decode_echo_request(binary()) -> #of_echo_request{}.
-decode_echo_request(?OF_ECHO_REQUEST_PATTERN) ->
-    _EchoRequest = #of_echo_request{
+-spec decode_echo_request(binary()) -> #of_v11_echo_request{}.
+decode_echo_request(?OF_V11_ECHO_REQUEST_PATTERN) ->
+    _EchoRequest = #of_v11_echo_request{
       data = Data
      }.
 
--spec decode_echo_reply(binary()) -> #of_echo_reply{}.
-decode_echo_reply(?OF_ECHO_REPLY_PATTERN) ->
-    _EchoReply = #of_echo_reply{
+-spec decode_echo_reply(binary()) -> #of_v11_echo_reply{}.
+decode_echo_reply(?OF_V11_ECHO_REPLY_PATTERN) ->
+    _EchoReply = #of_v11_echo_reply{
       data = Data
      }.
 
--spec decode_experimenter(binary()) -> #of_experimenter{}.
-decode_experimenter(?OF_EXPERIMENTER_PATTERN) ->
+-spec decode_experimenter(binary()) -> #of_v11_experimenter{}.
+decode_experimenter(?OF_V11_EXPERIMENTER_PATTERN) ->
     %% No validation, higher layer to determine if the extension is supported.
-    _Experimenter = #of_experimenter{
+    _Experimenter = #of_v11_experimenter{
       experimenter_id = ExperimenterId,
       data = Data
      }.
 
--spec decode_features_request(binary()) -> #of_features_request{}.
-decode_features_request(?OF_FEATURES_REQUEST_PATTERN) ->
-    _ReaturesRequest = #of_features_request{}.
+-spec decode_features_request(binary()) -> #of_v11_features_request{}.
+decode_features_request(?OF_V11_FEATURES_REQUEST_PATTERN) ->
+    _ReaturesRequest = #of_v11_features_request{}.
 
--spec decode_features_reply(binary()) -> #of_features_reply{}.
-decode_features_reply(?OF_FEATURES_REPLY_PATTERN) ->
-    _ReaturesReply = #of_features_reply{
+-spec decode_features_reply(binary()) -> #of_v11_features_reply{}.
+decode_features_reply(?OF_V11_FEATURES_REPLY_PATTERN) ->
+    _ReaturesReply = #of_v11_features_reply{
       data_path_id = DataPathId,
       n_buffers    = NBuffers,
       n_tables     = NTables,
@@ -94,13 +95,13 @@ decode_features_reply(?OF_FEATURES_REPLY_PATTERN) ->
       ports        = decode_ports(Ports)
      }.
 
--spec decode_get_config_request(binary()) -> #of_get_config_request{}.
-decode_get_config_request(?OF_GET_CONFIG_REQUEST_PATTERN) ->
-    _GetConfigRequest = #of_get_config_request{}.
+-spec decode_get_config_request(binary()) -> #of_v11_get_config_request{}.
+decode_get_config_request(?OF_V11_GET_CONFIG_REQUEST_PATTERN) ->
+    _GetConfigRequest = #of_v11_get_config_request{}.
 
--spec decode_get_config_reply(binary()) -> #of_get_config_reply{}.
-decode_get_config_reply(?OF_GET_CONFIG_REPLY_PATTERN) ->
-    _GetConfigReply = #of_get_config_reply{
+-spec decode_get_config_reply(binary()) -> #of_v11_get_config_reply{}.
+decode_get_config_reply(?OF_V11_GET_CONFIG_REPLY_PATTERN) ->
+    _GetConfigReply = #of_v11_get_config_reply{
       switch_config = decode_switch_config(SwitchConfig)
      }.
 
@@ -108,9 +109,9 @@ decode_get_config_reply(?OF_GET_CONFIG_REPLY_PATTERN) ->
 %% Internal functions.
 %%
 
--spec decode_capabilities(binary()) -> #of_capabilities{}.
-decode_capabilities(?OF_CAPABILITIES_PATTERN) ->
-    _Capabilities = #of_capabilities{
+-spec decode_capabilities(binary()) -> #of_v11_capabilities{}.
+decode_capabilities(?OF_V11_CAPABILITIES_PATTERN) ->
+    _Capabilities = #of_v11_capabilities{
       flow_stats   = (FlowStats == 1),
       table_stats  = (TableStats == 1),
       port_stats   = (PortStats == 1),
@@ -120,26 +121,26 @@ decode_capabilities(?OF_CAPABILITIES_PATTERN) ->
       arp_match_ip = (ArpMatchIp == 1)
      }.
 
--spec decode_port_config(binary()) -> #of_port_config{}.
-decode_port_config(?OF_PORT_CONFIG_PATTERN) ->
-    _PortConfig = #of_port_config{
+-spec decode_port_config(binary()) -> #of_v11_port_config{}.
+decode_port_config(?OF_V11_PORT_CONFIG_PATTERN) ->
+    _PortConfig = #of_v11_port_config{
       port_down    = (PortDown == 1),
       no_recv      = (NoRecv == 1),
       no_fwd       = (NoFwd == 1),
       no_packet_in = (NoPacketIn == 1)
      }.
 
--spec decode_port_state(binary()) -> #of_port_state{}.
-decode_port_state(?OF_PORT_STATE_PATTERN) ->
-    _PortState = #of_port_state{
+-spec decode_port_state(binary()) -> #of_v11_port_state{}.
+decode_port_state(?OF_V11_PORT_STATE_PATTERN) ->
+    _PortState = #of_v11_port_state{
       link_down = (LinkDown == 1),
       blocked   = (Blocked == 1),
       live      = (Live == 1)
      }.
 
--spec decode_port_features(binary()) -> #of_port_features{}.
-decode_port_features(?OF_PORT_FEATURES_PATTERN) ->
-    _PortFeatures = #of_port_features{
+-spec decode_port_features(binary()) -> #of_v11_port_features{}.
+decode_port_features(?OF_V11_PORT_FEATURES_PATTERN) ->
+    _PortFeatures = #of_v11_port_features{
       half_duplex_10_mbps  = (HalfDuplex10Mbps == 1),
       full_duplex_10_mbps  = (FullDuplex10Mbps == 1),
       half_duplex_100_mbps = (HalfDuplex100Mbps == 1),
@@ -170,15 +171,15 @@ decode_string(<< 0, _/binary>>, Accum) ->
 decode_string(<< Char, Rest/binary>>, Accum) ->
     decode_string(Rest, [Char | Accum]).
 
--spec decode_ports(binary()) -> [#of_port{}].
+-spec decode_ports(binary()) -> [#of_v11_port{}].
 decode_ports(Binary) ->
     decode_ports(Binary, []).
     
--spec decode_ports(binary(), [#of_port{}]) -> [#of_port{}].
+-spec decode_ports(binary(), [#of_v11_port{}]) -> [#of_v11_port{}].
 decode_ports(<<>>, ParsedPorts) ->
     ParsedPorts;
-decode_ports(?OF_PORTS_PATTERN, ParsedPorts) ->
-    Port = #of_port {
+decode_ports(?OF_V11_PORTS_PATTERN, ParsedPorts) ->
+    Port = #of_v11_port {
       port_no             = PortNo,
       hw_addr             = HwAddr,
       name                = decode_string(Name),
@@ -192,9 +193,9 @@ decode_ports(?OF_PORTS_PATTERN, ParsedPorts) ->
      },
     decode_ports(MorePorts, [Port | ParsedPorts]).
 
--spec decode_switch_config(binary()) -> #of_switch_config{}.
-decode_switch_config(?OF_SWITCH_CONFIG_PATTERN) ->
-    _SwitchConfig = #of_switch_config{
+-spec decode_switch_config(binary()) -> #of_v11_switch_config{}.
+decode_switch_config(?OF_V11_SWITCH_CONFIG_PATTERN) ->
+    _SwitchConfig = #of_v11_switch_config{
       frag_drop                 = FragDrop,
       frag_reasm                = FragReasm,
       invalid_ttl_to_controller = InvalidTtlToController,
@@ -230,99 +231,99 @@ decode_string_empty_test() ->
     ?assertEqual(ActualStr, ExpectedStr).
 
 decode_header_test() ->
-    Bin = of_test_msgs_v11:header_bin(),
+    Bin = of_v11_test_msgs:header_bin(),
     ActualRec = decode_header(Bin),
-    ExpectedRec = of_test_msgs_v11:header_rec(),
+    ExpectedRec = of_v11_test_msgs:header_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_header_bad_version_test() ->
-    Bin = of_test_msgs_v11:header_bad_version_bin(),
+    Bin = of_v11_test_msgs:header_bad_version_bin(),
     ?assertThrow({malformed, 
-                  ?OF_ERROR_TYPE_BAD_REQUEST, 
-                  ?OF_ERROR_CODE_BAD_REQUEST_BAD_VERSION},
+                  ?OF_V11_ERROR_TYPE_BAD_REQUEST, 
+                  ?OF_V11_ERROR_CODE_BAD_REQUEST_BAD_VERSION},
                  decode_header(Bin)).
 
 decode_header_bad_message_type_test() ->
-    Bin = of_test_msgs_v11:header_bad_message_type_bin(),
+    Bin = of_v11_test_msgs:header_bad_message_type_bin(),
     ?assertThrow({malformed, 
-                  ?OF_ERROR_TYPE_BAD_REQUEST, 
-                  ?OF_ERROR_CODE_BAD_REQUEST_BAD_TYPE},
+                  ?OF_V11_ERROR_TYPE_BAD_REQUEST, 
+                  ?OF_V11_ERROR_CODE_BAD_REQUEST_BAD_TYPE},
                  decode_header(Bin)).
 
 decode_hello_test() ->
-    Bin = of_test_msgs_v11:hello_bin(),
+    Bin = of_v11_test_msgs:hello_bin(),
     ActualRec = decode_hello(Bin),
-    ExpectedRec = of_test_msgs_v11:hello_rec(),
+    ExpectedRec = of_v11_test_msgs:hello_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_hello_with_extension_test() ->
-    Bin = of_test_msgs_v11:hello_with_extension_bin(),
+    Bin = of_v11_test_msgs:hello_with_extension_bin(),
     ActualRec = decode_hello(Bin),
-    ExpectedRec = of_test_msgs_v11:hello_with_extension_rec(),
+    ExpectedRec = of_v11_test_msgs:hello_with_extension_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_error_test() ->
-    Bin = of_test_msgs_v11:error_bin(),
+    Bin = of_v11_test_msgs:error_bin(),
     ActualRec = decode_error(Bin),
-    ExpectedRec = of_test_msgs_v11:error_rec(),
+    ExpectedRec = of_v11_test_msgs:error_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_error_with_data_test() ->
-    Bin = of_test_msgs_v11:error_with_data_bin(),
+    Bin = of_v11_test_msgs:error_with_data_bin(),
     ActualRec = decode_error(Bin),
-    ExpectedRec = of_test_msgs_v11:error_with_data_rec(),
+    ExpectedRec = of_v11_test_msgs:error_with_data_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_echo_request_test() ->
-    Bin = of_test_msgs_v11:echo_request_bin(),
+    Bin = of_v11_test_msgs:echo_request_bin(),
     ActualRec = decode_echo_request(Bin),
-    ExpectedRec = of_test_msgs_v11:echo_request_rec(),
+    ExpectedRec = of_v11_test_msgs:echo_request_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_echo_request_with_data_test() ->
-    Bin = of_test_msgs_v11:echo_request_with_data_bin(),
+    Bin = of_v11_test_msgs:echo_request_with_data_bin(),
     ActualRec = decode_echo_request(Bin),
-    ExpectedRec = of_test_msgs_v11:echo_request_with_data_rec(),
+    ExpectedRec = of_v11_test_msgs:echo_request_with_data_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_echo_reply_test() ->
-    Bin = of_test_msgs_v11:echo_reply_bin(),
+    Bin = of_v11_test_msgs:echo_reply_bin(),
     ActualRec = decode_echo_reply(Bin),
-    ExpectedRec = of_test_msgs_v11:echo_reply_rec(),
+    ExpectedRec = of_v11_test_msgs:echo_reply_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_echo_reply_with_data_test() ->
-    Bin = of_test_msgs_v11:echo_reply_with_data_bin(),
+    Bin = of_v11_test_msgs:echo_reply_with_data_bin(),
     ActualRec = decode_echo_reply(Bin),
-    ExpectedRec = of_test_msgs_v11:echo_reply_with_data_rec(),
+    ExpectedRec = of_v11_test_msgs:echo_reply_with_data_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_experimenter_test() ->
-    Bin = of_test_msgs_v11:experimenter_bin(),
+    Bin = of_v11_test_msgs:experimenter_bin(),
     ActualRec = decode_experimenter(Bin),
-    ExpectedRec = of_test_msgs_v11:experimenter_rec(),
+    ExpectedRec = of_v11_test_msgs:experimenter_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_experimenter_with_data_test() ->
-    Bin = of_test_msgs_v11:experimenter_with_data_bin(),
+    Bin = of_v11_test_msgs:experimenter_with_data_bin(),
     ActualRec = decode_experimenter(Bin),
-    ExpectedRec = of_test_msgs_v11:experimenter_with_data_rec(),
+    ExpectedRec = of_v11_test_msgs:experimenter_with_data_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_features_request_test() ->
-    Bin = of_test_msgs_v11:features_request_bin(),
+    Bin = of_v11_test_msgs:features_request_bin(),
     ActualRec = decode_features_request(Bin),
-    ExpectedRec = of_test_msgs_v11:features_request_rec(),
+    ExpectedRec = of_v11_test_msgs:features_request_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_features_reply_test() ->
-    Bin = of_test_msgs_v11:features_reply_bin(),
+    Bin = of_v11_test_msgs:features_reply_bin(),
     ActualRec = decode_features_reply(Bin),
-    ExpectedRec = of_test_msgs_v11:features_reply_rec(),
+    ExpectedRec = of_v11_test_msgs:features_reply_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
 decode_get_config_request_test() ->
-    Bin = of_test_msgs_v11:get_config_request_bin(),
+    Bin = of_v11_test_msgs:get_config_request_bin(),
     ActualRec = decode_get_config_request(Bin),
-    ExpectedRec = of_test_msgs_v11:get_config_request_rec(),
+    ExpectedRec = of_v11_test_msgs:get_config_request_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
