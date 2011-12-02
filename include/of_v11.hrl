@@ -36,6 +36,8 @@
 -define(OF_V11_MESSAGE_TYPE_QUEUE_GET_CONFIG_REPLY,   23).
 
 %% Error types
+-define(OF_V11_ERROR_TYPE_MIN,                  0).
+-define(OF_V11_ERROR_TYPE_MAX,                  10).
 -define(OF_V11_ERROR_TYPE_HELLO_FAILED,         0).
 -define(OF_V11_ERROR_TYPE_BAD_REQUEST,          1).
 -define(OF_V11_ERROR_TYPE_BAD_ACTION,           2).
@@ -307,9 +309,9 @@
 
 -type of_v11_version() :: ?OF_V11_VERSION.
 
--type of_v11_message_type() :: ?OF_V11_MESSAGE_TYPE_HELLO..?OF_V11_MESSAGE_TYPE_QUEUE_GET_CONFIG_REPLY.
+-type of_v11_message_type() :: ?OF_V11_MESSAGE_TYPE_MIN..?OF_V11_MESSAGE_TYPE_MAX.
 
--type of_v11_error_type() :: ?OF_V11_MESSAGE_TYPE_HELLO..?OF_V11_MESSAGE_TYPE_QUEUE_GET_CONFIG_REPLY.
+-type of_v11_error_type() :: ?OF_V11_ERROR_TYPE_MIN..?OF_V11_ERROR_TYPE_MAX.
 
 -type of_v11_error_code() :: ?OF_V11_ERROR_CODE_MIN..?OF_V11_ERROR_CODE_MAX.
 
