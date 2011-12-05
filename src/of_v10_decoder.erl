@@ -2,6 +2,8 @@
 %% @copyright 2011 Bruno Rijsman
 %%
 
+%% @@@ ### CONTINUE FROM HERE: ADD TEST CASE FOR FLOW REMOVED
+
 %% TODO: Check for correct length of binary in all decode functions
 
 -module(of_v10_decoder).
@@ -13,9 +15,12 @@
          decode_echo_reply/1,
          decode_vendor/1,
          decode_features_request/1,
-         decode_features_reply/1]).
-%%         decode_get_config_request/1,
-%%         decode_get_config_reply/1]).
+         decode_features_reply/1,
+         decode_get_config_request/1,
+         decode_get_config_reply/1,
+         decode_set_config/1,
+         decode_packet_in/1,
+         decode_flow_removed/1]).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -93,15 +98,46 @@ decode_features_reply(?OF_V10_FEATURES_REPLY_PATTERN) ->
       ports        = decode_ports(Ports)
      }.
 
-%% -spec decode_get_config_request(binary()) -> #of_v10_get_config_request{}.
-%% decode_get_config_request(?OF_V10_GET_CONFIG_REQUEST_PATTERN) ->
-%%     _GetConfigRequest = #of_v10_get_config_request{}.
+-spec decode_get_config_request(binary()) -> #of_v10_get_config_request{}.
+decode_get_config_request(?OF_V10_GET_CONFIG_REQUEST_PATTERN) ->
+    _GetConfigRequest = #of_v10_get_config_request{}.
 
-%% -spec decode_get_config_reply(binary()) -> #of_v10_get_config_reply{}.
-%% decode_get_config_reply(?OF_V10_GET_CONFIG_REPLY_PATTERN) ->
-%%     _GetConfigReply = #of_v10_get_config_reply{
-%%       switch_config = decode_switch_config(SwitchConfig)
-%%      }.
+-spec decode_get_config_reply(binary()) -> #of_v10_get_config_reply{}.
+decode_get_config_reply(?OF_V10_GET_CONFIG_REPLY_PATTERN) ->
+    _GetConfigReply = #of_v10_get_config_reply{
+      switch_config = decode_switch_config(SwitchConfig)
+     }.
+
+-spec decode_set_config(binary()) -> #of_v10_set_config{}.
+decode_set_config(?OF_V10_SET_CONFIG_PATTERN) ->
+    _SetConfig = #of_v10_set_config{
+      switch_config = decode_switch_config(SwitchConfig)
+     }.
+
+-spec decode_packet_in(binary()) -> #of_v10_packet_in{}.
+decode_packet_in(?OF_V10_PACKET_IN_PATTERN) ->
+    _PacketIn = #of_v10_packet_in{
+      buffer_id = BufferId,
+      total_len = TotalLen,
+      in_port   = InPort,
+      reason    = Reason,
+      data      = Data
+     }.
+
+%% TODO: validate Reason (similar in all other messages)
+-spec decode_flow_removed(binary()) -> #of_v10_flow_removed{}.
+decode_flow_removed(?OF_V10_FLOW_REMOVED_PATTERN) ->
+    _FlowRemoved = #of_v10_flow_removed{
+      match         = decode_flow_match(Match),
+      cookie        = Cookie,
+      priority      = Priority,
+      reason        = Reason,
+      duration_sec  = DurationSec,
+      duration_nsec = DurationNsec,
+      idle_timeout  = IdleTimeout,
+      packet_count  = PacketCount,
+      byte_count    = ByteCount
+     }.
 
 %%
 %% Internal functions.
@@ -205,14 +241,51 @@ decode_ports(?OF_V10_PORTS_PATTERN, ParsedPorts) ->
      },
     decode_ports(MorePorts, [Port | ParsedPorts]).
 
-%% -spec decode_switch_config(binary()) -> #of_v10_switch_config{}.
-%% decode_switch_config(?OF_V10_SWITCH_CONFIG_PATTERN) ->
-%%     _SwitchConfig = #of_v10_switch_config{
-%%       frag_drop                 = FragDrop,
-%%       frag_reasm                = FragReasm,
-%%       invalid_ttl_to_controller = InvalidTtlToController,
-%%       miss_send_len             = MissSendLen
-%%      }.
+-spec decode_switch_config_flags(binary()) -> of_v10_frag_handling().
+decode_switch_config_flags(?OF_V10_SWITCH_CONFIG_FLAGS_PATTERN) ->
+    FragHandling.
+
+-spec decode_switch_config(binary()) -> #of_v10_switch_config{}.
+decode_switch_config(?OF_V10_SWITCH_CONFIG_PATTERN) ->
+    _SwitchConfig = #of_v10_switch_config{
+      frag_handling = decode_switch_config_flags(Flags),
+      miss_send_len = MissSendLen
+     }.
+
+-spec decode_flow_match_wildcards(binary()) -> #of_v10_flow_match_wildcards{}.
+decode_flow_match_wildcards(?OF_V10_FLOW_MATCH_WILDCARDS_PATTERN) ->
+    _FlowMatchWildcards = #of_v10_flow_match_wildcards{
+      in_port     = (InPort == 1),
+      dl_vlan     = (DlVlan == 1),
+      dl_src      = (DlSrc == 1),
+      dl_dst      = (DlDst == 1),
+      dl_type     = (DlType == 1),
+      nw_proto    = (NwProto == 1),
+      tp_src      = (TpSrc == 1),
+      tp_dst      = (TpDst == 1),
+      nw_src_bits = NwSrcBits,
+      nw_dst_bits = NwDstBits,
+      dl_vlan_pcp = (DlVlanPcp == 1),
+      nw_tos      = (NwTos == 1)
+     }.
+
+-spec decode_flow_match(binary()) -> #of_v10_flow_match{}.
+decode_flow_match(?OF_V10_FLOW_MATCH_PATTERN) ->
+    _FlowMatch = #of_v10_flow_match{
+      wildcards   = decode_flow_match_wildcards(Wildcards),
+      in_port     = InPort,
+      dl_src      = DlSrc,
+      dl_dst      = DlDst,
+      dl_vlan     = DlVlan,
+      dl_vlan_pcp = DlVlanPcp,
+      dl_type     = DlType,
+      nw_tos      = NwTos,
+      nw_proto    = NwProto,
+      nw_src      = NwSrc,
+      nw_dst      = NwDst,
+      tp_src      = TpSrc,
+      tp_dst      = TpDst
+     }.
 
 %%
 %% Unit tests.
@@ -334,8 +407,26 @@ decode_features_reply_test() ->
     ExpectedRec = of_v10_test_msgs:features_reply_rec(),
     ?assertEqual(ActualRec, ExpectedRec).
 
-%% decode_get_config_request_test() ->
-%%     Bin = of_v10_test_msgs:get_config_request_bin(),
-%%     ActualRec = decode_get_config_request(Bin),
-%%     ExpectedRec = of_v10_test_msgs:get_config_request_rec(),
-%%     ?assertEqual(ActualRec, ExpectedRec).
+decode_get_config_request_test() ->
+    Bin = of_v10_test_msgs:get_config_request_bin(),
+    ActualRec = decode_get_config_request(Bin),
+    ExpectedRec = of_v10_test_msgs:get_config_request_rec(),
+    ?assertEqual(ActualRec, ExpectedRec).
+
+decode_get_config_reply_test() ->
+    Bin = of_v10_test_msgs:get_config_reply_bin(),
+    ActualRec = decode_get_config_reply(Bin),
+    ExpectedRec = of_v10_test_msgs:get_config_reply_rec(),
+    ?assertEqual(ActualRec, ExpectedRec).
+
+decode_set_config_test() ->
+    Bin = of_v10_test_msgs:set_config_bin(),
+    ActualRec = decode_set_config(Bin),
+    ExpectedRec = of_v10_test_msgs:set_config_rec(),
+    ?assertEqual(ActualRec, ExpectedRec).
+
+decode_packet_in_test() ->
+    Bin = of_v10_test_msgs:packet_in_bin(),
+    ActualRec = decode_packet_in(Bin),
+    ExpectedRec = of_v10_test_msgs:packet_in_rec(),
+    ?assertEqual(ActualRec, ExpectedRec).

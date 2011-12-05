@@ -31,9 +31,15 @@
          features_request_bin/0,
          features_request_rec/0,
          features_reply_bin/0,
-         features_reply_rec/0]).
-         %% get_config_request_bin/0,
-         %% get_config_request_rec/0]).
+         features_reply_rec/0,
+         get_config_request_bin/0,
+         get_config_request_rec/0,
+         get_config_reply_bin/0,
+         get_config_reply_rec/0,
+         set_config_bin/0,
+         set_config_rec/0,
+         packet_in_bin/0,
+         packet_in_rec/0]).
 
 -include_lib("../include/of_v10.hrl").
 
@@ -163,11 +169,52 @@ features_reply_rec() ->
                            actions      = actions_rec(),
                            ports        = [port_rec(), port_rec()]}.
 
-%% get_config_request_bin() ->
-%%     << >>.
+get_config_request_bin() ->
+    << >>.
 
-%% get_config_request_rec() ->
-%%     #of_v10_get_config_request{}.
+get_config_request_rec() ->
+    #of_v10_get_config_request{}.
+
+switch_config_flags_bin() ->
+    << 0                          : 14,    %% Reserved
+       ?OF_V10_FRAG_HANDLING_DROP : 2 >>.  %% Fragment handling
+
+switch_config_bin() ->
+    SwitchConfigFlagsBin = switch_config_flags_bin(),
+    << SwitchConfigFlagsBin/binary,        %% Flags
+       123 : 16 >>.                        %% Miss send length
+
+get_config_reply_bin() ->
+    _SwitchConfig = switch_config_bin().
+
+switch_config_rec() ->
+    #of_v10_switch_config{frag_handling = ?OF_V10_FRAG_HANDLING_DROP,
+                          miss_send_len = 123}.
+
+get_config_reply_rec() ->
+    #of_v10_get_config_reply{switch_config = switch_config_rec()}.
+
+set_config_bin() ->
+    _SwitchConfig = switch_config_bin().
+
+set_config_rec() ->
+    #of_v10_set_config{switch_config = switch_config_rec()}.
+
+packet_in_bin() ->
+    Data = << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 >>,
+    << 12345                             : 32,  %% Buffer ID
+       10                                : 16,  %% Total length
+       222                               : 16,  %% In port
+       ?OF_V10_PACKET_IN_REASON_NO_MATCH : 8,   %% Reason
+       0                                 : 8,   %% Pad
+       Data/binary >>.                          %% Data
+
+packet_in_rec() ->
+    #of_v10_packet_in{buffer_id = 12345,
+                      total_len = 10,
+                      in_port   = 222,
+                      reason    = ?OF_V10_PACKET_IN_REASON_NO_MATCH,
+                      data      = << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 >>}.
 
 %%
 %% Internal functions.
