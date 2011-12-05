@@ -39,7 +39,11 @@
          set_config_bin/0,
          set_config_rec/0,
          packet_in_bin/0,
-         packet_in_rec/0]).
+         packet_in_rec/0,
+         flow_removed_bin/0,
+         flow_removed_rec/0,
+         port_status_bin/0,
+         port_status_rec/0]).
 
 -include_lib("../include/of_v10.hrl").
 
@@ -150,8 +154,8 @@ features_request_rec() ->
 features_reply_bin() ->
     CapabilitiesBin = capabilities_bin(),
     ActionsBin = actions_bin(),
-    Port1Bin = port_bin(),
-    Port2Bin = port_bin(),
+    Port1Bin = phy_port_bin(),
+    Port2Bin = phy_port_bin(),
     << 123456789 : 64,             %% Data path ID
        5000      : 32,             %% Number of buffers
        50        : 8,              %% Number of tables
@@ -167,7 +171,7 @@ features_reply_rec() ->
                            n_tables     = 50,
                            capabilities = capabilities_rec(),
                            actions      = actions_rec(),
-                           ports        = [port_rec(), port_rec()]}.
+                           ports        = [phy_port_rec(), phy_port_rec()]}.
 
 get_config_request_bin() ->
     << >>.
@@ -215,6 +219,22 @@ packet_in_rec() ->
                       in_port   = 222,
                       reason    = ?OF_V10_PACKET_IN_REASON_NO_MATCH,
                       data      = << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 >>}.
+
+flow_removed_bin() ->
+    %% @@@ TODO
+    << >>.
+
+flow_removed_rec() ->
+    %% @@@ TODO
+    #of_v10_flow_removed{}.
+
+port_status_bin() ->
+    %% @@@ TODO
+    << >>.
+
+port_status_rec() ->
+    %% @@@ TODO
+    #of_v10_flow_removed{}.
 
 %%
 %% Internal functions.
@@ -272,10 +292,10 @@ actions_rec() ->
 hw_addr_bin() ->
     << 1, 2, 3, 4, 5, 6 >>.
 
-port_name_bin() ->
+phy_port_name_bin() ->
     << "port1", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 >>.
 
-port_config_bin() ->
+phy_port_config_bin() ->
     << 0 : 25,                     %% Reserved
        1 : 1,                      %% No packet in
        1 : 1,                      %% No forward
@@ -285,27 +305,27 @@ port_config_bin() ->
        0 : 1,                      %% No STP
        1 : 1 >>.                   %% Port down
 
-port_config_rec() ->
-    #of_v10_port_config{port_down    = true,
-                        no_stp       = false,
-                        no_recv      = false,
-                        no_recv_stp  = false,
-                        no_flood     = false,
-                        no_fwd       = true,
-                        no_packet_in = true}.
+phy_port_config_rec() ->
+    #of_v10_phy_port_config{port_down    = true,
+                            no_stp       = false,
+                            no_recv      = false,
+                            no_recv_stp  = false,
+                            no_flood     = false,
+                            no_fwd       = true,
+                            no_packet_in = true}.
 
-port_state_bin() ->
+phy_port_state_bin() ->
     StpPortState = ?OF_V10_STP_PORT_STATE_LEARN,
     << 0            : 22,          %% Reserved,
        StpPortState : 2,           %% STP port state
        0            : 7,           %% Reserved
        0            : 1 >>.        %% Link down
 
-port_state_rec() ->
-    #of_v10_port_state{link_down      = false,
-                       stp_port_state = ?OF_V10_STP_PORT_STATE_LEARN}.
+phy_port_state_rec() ->
+    #of_v10_phy_port_state{link_down      = false,
+                           stp_port_state = ?OF_V10_STP_PORT_STATE_LEARN}.
 
-port_features_bin() ->
+phy_port_features_bin() ->
     << 0 : 20,                     %% Reserved
        0 : 1,                      %% Pause asymetric
        0 : 1,                      %% Pause
@@ -320,43 +340,43 @@ port_features_bin() ->
        1 : 1,                      %% Full duplex 10 Mbps
        1 : 1 >>.                   %% Half duplex 10 Mbps
 
-port_features_rec() ->
-    #of_v10_port_features{half_duplex_10_mbps  = true,
-                          full_duplex_10_mbps  = true,
-                          half_duplex_100_mbps = true,
-                          full_duplex_100_mbps = true,
-                          half_duplex_1_gbps   = false,
-                          full_duplex_1_gbps   = false,
-                          full_duplex_10_gbps  = false,
-                          copper_medium        = true,
-                          fiber_medium         = false,
-                          auto_negotiation     = true,
-                          pause                = false,
-                          pause_asymetric      = false}.
+phy_port_features_rec() ->
+    #of_v10_phy_port_features{half_duplex_10_mbps  = true,
+                              full_duplex_10_mbps  = true,
+                              half_duplex_100_mbps = true,
+                              full_duplex_100_mbps = true,
+                              half_duplex_1_gbps   = false,
+                              full_duplex_1_gbps   = false,
+                              full_duplex_10_gbps  = false,
+                              copper_medium        = true,
+                              fiber_medium         = false,
+                              auto_negotiation     = true,
+                              pause                = false,
+                              pause_asymetric      = false}.
 
-port_bin() ->
+phy_port_bin() ->
     HwAddrBin = hw_addr_bin(),
-    PortNameBin = port_name_bin(),
-    PortConfigBin = port_config_bin(),
-    PortStateBin = port_state_bin(),
-    PortFeaturesBin = port_features_bin(),
-    << 1 : 16,                     %% Port no
-       HwAddrBin/binary,           %% Hardware address
-       PortNameBin/binary,         %% Name
-       PortConfigBin/binary,       %% Config
-       PortStateBin/binary,        %% State
-       PortFeaturesBin/binary,     %% Current features
-       PortFeaturesBin/binary,     %% Advertised features
-       PortFeaturesBin/binary,     %% Supported features
-       PortFeaturesBin/binary >>.  %% Peer features
+    PhyPortNameBin = phy_port_name_bin(),
+    PhyPortConfigBin = phy_port_config_bin(),
+    PhyPortStateBin = phy_port_state_bin(),
+    PhyPortFeaturesBin = phy_port_features_bin(),
+    << 1 : 16,                        %% Port no
+       HwAddrBin/binary,              %% Hardware address
+       PhyPortNameBin/binary,         %% Name
+       PhyPortConfigBin/binary,       %% Config
+       PhyPortStateBin/binary,        %% State
+       PhyPortFeaturesBin/binary,     %% Current features
+       PhyPortFeaturesBin/binary,     %% Advertised features
+       PhyPortFeaturesBin/binary,     %% Supported features
+       PhyPortFeaturesBin/binary >>.  %% Peer features
 
-port_rec() ->
-    #of_v10_port{port_no             = 1,
-                 hw_addr             = hw_addr_bin(),
-                 name                = "port1",
-                 config              = port_config_rec(),
-                 state               = port_state_rec(),
-                 current_features    = port_features_rec(),
-                 advertised_features = port_features_rec(),
-                 supported_features  = port_features_rec(),
-                 peer_features       = port_features_rec()}.
+phy_port_rec() ->
+    #of_v10_phy_port{port_no             = 1,
+                     hw_addr             = hw_addr_bin(),
+                     name                = "port1",
+                     config              = phy_port_config_rec(),
+                     state               = phy_port_state_rec(),
+                     current_features    = phy_port_features_rec(),
+                     advertised_features = phy_port_features_rec(),
+                     supported_features  = phy_port_features_rec(),
+                     peer_features       = phy_port_features_rec()}.

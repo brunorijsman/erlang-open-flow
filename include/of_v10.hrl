@@ -127,6 +127,13 @@
 -define(OF_V10_FLOW_REMOVED_REASON_HARD_TIMEOUT, 1).
 -define(OF_V10_FLOW_REMOVED_REASON_DELETE,       2).
 
+%% Port status reasons
+-define(OF_V10_PORT_STATUS_REASON_MIN,    0).
+-define(OF_V10_PORT_STATUS_REASON_MAX,    2).
+-define(OF_V10_PORT_STATUS_REASON_ADD,    0).
+-define(OF_V10_PORT_STATUS_REASON_DELETE, 1).
+-define(OF_V10_PORT_STATUS_REASON_MODIFY, 2).
+
 %% Maximum length of hardware address
 -define(OF_V10_ETH_ALEN, 6).
 
@@ -141,19 +148,7 @@
            Length  : 16,
            Xid     : 32 >>).
 
--define(OF_V10_PORTS_PATTERN,
-        << PortNo             : 16,
-           HwAddr             : ?OF_V10_ETH_ALEN/binary-unit:8,
-           Name               : ?OF_V10_MAX_PORT_NAME_LEN/binary-unit:8,
-           Config             : 4/binary,
-           State              : 4/binary,
-           CurrentFeatures    : 4/binary,
-           AdvertisedFeatures : 4/binary,
-           SupportedFeatures  : 4/binary,
-           PeerFeatures       : 4/binary,
-           MorePorts/binary >>).
-
--define(OF_V10_PORT_CONFIG_PATTERN,
+-define(OF_V10_PHY_PORT_CONFIG_PATTERN,
         << _Reserved  : 25,
            NoPacketIn : 1,
            NoFwd      : 1,
@@ -163,13 +158,13 @@
            NoStp      : 1,
            PortDown   : 1 >>).
 
--define(OF_V10_PORT_STATE_PATTERN,
+-define(OF_V10_PHY_PORT_STATE_PATTERN,
         << _Reserved1   : 22,
            StpPortState : 2,
            _Reserved2   : 7,
            LinkDown     : 1 >>).
 
--define(OF_V10_PORT_FEATURES_PATTERN,
+-define(OF_V10_PHY_PORT_FEATURES_PATTERN,
         << _Reserved         : 20,
            PauseAsymetric    : 1,
            Pause             : 1,
@@ -183,6 +178,17 @@
            HalfDuplex100Mbps : 1,
            FullDuplex10Mbps  : 1,
            HalfDuplex10Mbps  : 1 >>).
+
+-define(OF_V10_PHY_PORT_PATTERN,
+        << PortNo             : 16,
+           HwAddr             : ?OF_V10_ETH_ALEN/binary-unit:8,
+           Name               : ?OF_V10_MAX_PORT_NAME_LEN/binary-unit:8,
+           Config             : 4/binary,
+           State              : 4/binary,
+           CurrentFeatures    : 4/binary,
+           AdvertisedFeatures : 4/binary,
+           SupportedFeatures  : 4/binary,
+           PeerFeatures       : 4/binary >>.
 
 -define(OF_V10_QUEUE_PATTERN,
         << QueueId : 32,
@@ -323,6 +329,11 @@
            PacketCount  : 64,
            ByteCount    : 64 >>.
 
+-define(OF_V10_PORT_STATUS_PATTERN,
+        << Reason : 8,
+           _Pad   : 56,
+           Desc   : 6/binary >>.
+
 -type of_v10_version() :: ?OF_V10_VERSION.
 
 -type of_v10_message_type() :: ?OF_V10_MESSAGE_TYPE_MIN..?OF_V10_MESSAGE_TYPE_MAX.
@@ -340,6 +351,8 @@
 -type of_v10_packet_in_reason() :: ?OF_V10_PACKET_IN_REASON_MIN..?OF_V10_PACKET_IN_REASON_MAX.
 
 -type of_v10_flow_removed_reason() :: ?OF_V10_FLOW_REMOVED_REASON_MIN..?OF_V10_FLOW_REMOVED_REASON_MAX.
+
+-type of_v10_port_status_reason() :: ?OF_V10_PORT_STATUS_REASON_MIN..?OF_V10_PORT_STATUS_REASON_MAX.
 
 -record(of_v10_header, {
           version :: of_v10_version(),
@@ -366,7 +379,7 @@
 
 -record(of_v10_features_request, {}).
 
--record(of_v10_port_config, {
+-record(of_v10_phy_port_config, {
           port_down    :: boolean(),
           no_stp       :: boolean(),
           no_recv      :: boolean(),
@@ -375,11 +388,11 @@
           no_fwd       :: boolean(),
           no_packet_in :: boolean() }).
 
--record(of_v10_port_state, {
+-record(of_v10_phy_port_state, {
           link_down      :: boolean(),
           stp_port_state :: of_v10_stp_port_state() }).
 
--record(of_v10_port_features, {
+-record(of_v10_phy_port_features, {
           half_duplex_10_mbps  :: boolean(),
           full_duplex_10_mbps  :: boolean(),
           half_duplex_100_mbps :: boolean(),
@@ -393,16 +406,16 @@
           pause                :: boolean(),
           pause_asymetric      :: boolean() }).
 
--record(of_v10_port, {
+-record(of_v10_phy_port, {
           port_no             :: uint16(),
           hw_addr             :: of_hw_addr(),
           name                :: string(),
-          config              :: #of_v10_port_config{},
-          state               :: #of_v10_port_state{},
-          current_features    :: #of_v10_port_features{},
-          advertised_features :: #of_v10_port_features{},
-          supported_features  :: #of_v10_port_features{},
-          peer_features       :: #of_v10_port_features{} }).
+          config              :: #of_v10_phy_port_config{},
+          state               :: #of_v10_phy_port_state{},
+          current_features    :: #of_v10_phy_port_features{},
+          advertised_features :: #of_v10_phy_port_features{},
+          supported_features  :: #of_v10_phy_port_features{},
+          peer_features       :: #of_v10_phy_port_features{} }).
 
 -record(of_v10_capabilities, {
           flow_stats   :: boolean(),
@@ -433,7 +446,7 @@
           n_tables     :: uint8(),
           capabilities :: #of_v10_capabilities{},
           actions      :: #of_v10_actions{},
-          ports        :: [#of_v10_port{}] }).
+          ports        :: [#of_v10_phy_port{}] }).
 
 -record(of_v10_get_config_request, {}).
 
@@ -495,6 +508,10 @@
           packet_count  :: uint64(),
           byte_count    :: uint64() }).
 
+-record(of_v10_port_status, {
+          reason :: of_v10_port_status_reason(),
+          desc   :: #of_v10_phy_port{} }).
+
 -type of_v10_message() :: #of_v10_hello{} |
                           #of_v10_error{} |
                           #of_v10_echo_request{} |
@@ -506,6 +523,7 @@
                           #of_v10_get_config_reply{} |
                           #of_v10_set_config{} |
                           #of_v10_packet_in{} |
-                          #of_v10_flow_removed{}.
+                          #of_v10_flow_removed{} |
+                          #of_v10_port_status{}.
 
 -endif.
