@@ -397,19 +397,27 @@
            Data/binary >>.
 
 -define(OF_V10_FLOW_MOD_PATTERN,
-          << Match        : 40/binary,
-             Cookie       : 64,
-             Command      : 16,
-             IdleTimeout  : 16,
-             HardTimeout  : 16,
+        << Match        : 40/binary,
+           Cookie       : 64,
+           Command      : 16,
+           IdleTimeout  : 16,
+           HardTimeout  : 16,
              Priority     : 16,
-             BufferId     : 32, 
-             OutPort      : 16,
-             _Reserved    : 13,
-             Emerg        : 1,
-             CheckOverlap : 1, 
-             SendFlowRem  : 1,
-             Actions/binary >>.
+           BufferId     : 32, 
+           OutPort      : 16,
+           _Reserved    : 13,
+           Emerg        : 1,
+           CheckOverlap : 1, 
+           SendFlowRem  : 1,
+           Actions/binary >>.
+
+-define(OF_V10_PORT_MOD_PATTERN,
+        << PortNo    : 16,
+           HwAddr    : ?OF_V10_ETH_ALEN/binary-unit:8,
+           Config    : 4/binary,
+           Mask      : 4/binary,
+           Advertise : 4/binary,
+           _Pad      : 32 >>.
 
 -type of_v10_version() :: ?OF_V10_VERSION.
 
@@ -672,6 +680,14 @@
           actions       :: [of_v10_action()]
          }).
 
+-record(of_v10_port_mod, {
+          port_no   :: uint16(),
+          hw_addr   :: of_hw_addr(),
+          config    :: #of_v10_phy_port_config{},
+          mask      :: #of_v10_phy_port_config{},
+          advertise :: #of_v10_phy_port_features{}
+         }).
+
 -type of_v10_message() :: #of_v10_hello{} |
                           #of_v10_error{} |
                           #of_v10_echo_request{} |
@@ -686,6 +702,7 @@
                           #of_v10_flow_removed{} |
                           #of_v10_port_status{} |
                           #of_v10_packet_out{} |
-                          #of_v10_flow_mod{}.
+                          #of_v10_flow_mod{} |
+                          #of_v10_port_mod{}.
 
 -endif.

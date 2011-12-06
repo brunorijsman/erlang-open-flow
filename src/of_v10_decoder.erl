@@ -21,7 +21,8 @@
          decode_flow_removed/1,
          decode_port_status/1,
          decode_packet_out/1,
-         decode_flow_mod/1]).
+         decode_flow_mod/1,
+         decode_port_mod/1]).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -173,6 +174,16 @@ decode_flow_mod(?OF_V10_FLOW_MOD_PATTERN) ->
       check_overlap = (CheckOverlap == 1),
       emerg         = (Emerg == 1),
       actions       = decode_actions(Actions)
+     }.
+
+-spec decode_port_mod(binary()) -> #of_v10_port_mod{}.
+decode_port_mod(?OF_V10_PORT_MOD_PATTERN) ->
+    _PortMod = #of_v10_port_mod{
+      port_no   = PortNo,
+      hw_addr   = HwAddr,
+      config    = decode_phy_port_config(Config),
+      mask      = decode_phy_port_config(Mask),
+      advertise = decode_phy_port_features(Advertise)
      }.
 
 %%
@@ -630,4 +641,10 @@ decode_flow_mod_test() ->
     Bin = of_v10_test_msgs:flow_mod_bin(),
     ActualRec = decode_flow_mod(Bin),
     ExpectedRec = of_v10_test_msgs:flow_mod_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_port_mod_test() ->
+    Bin = of_v10_test_msgs:port_mod_bin(),
+    ActualRec = decode_port_mod(Bin),
+    ExpectedRec = of_v10_test_msgs:port_mod_rec(),
     ?assertEqual(ExpectedRec, ActualRec).

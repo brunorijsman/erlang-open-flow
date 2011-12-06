@@ -83,7 +83,9 @@
          packet_out_multiple_actions_data_bin/0,
          packet_out_multiple_actions_data_rec/0,
          flow_mod_bin/0,
-         flow_mod_rec/0]).
+         flow_mod_rec/0,
+         port_mod_bin/0,
+         port_mod_rec/0]).
  
 -include_lib("../include/of_v10.hrl").
 
@@ -514,6 +516,26 @@ flow_mod_rec() ->
                      check_overlap = false,
                      emerg         = true,
                      actions       = Actions}.
+
+port_mod_bin() ->
+    HwAddr    = hw_addr_bin(),
+    Config    = phy_port_config_bin(),
+    Mask      = phy_port_config_bin(),
+    Advertise = phy_port_features_bin(),
+    << 111 : 16,          %% Port no
+       HwAddr/binary, 
+       Config/binary,
+       Mask/binary,
+       Advertise/binary,
+       0   : 32 >>.       %% Padding
+
+port_mod_rec() ->
+    #of_v10_port_mod{port_no   = 111,
+                     hw_addr   = hw_addr_bin(),
+                     config    = phy_port_config_rec(),
+                     mask      = phy_port_config_rec(),
+                     advertise = phy_port_features_rec()}.
+
 
 %%
 %% Internal functions.
