@@ -140,6 +140,14 @@
 -define(OF_V10_ACTION_TYPE_ENQUEUE,      11).
 -define(OF_V10_ACTION_TYPE_VENDOR,       16#ffff).
 
+-define(OF_V10_FLOW_MOD_COMMAND_MIN,           0).
+-define(OF_V10_FLOW_MOD_COMMAND_MAX,           4).
+-define(OF_V10_FLOW_MOD_COMMAND_ADD,           0).
+-define(OF_V10_FLOW_MOD_COMMAND_MODIFY,        1).
+-define(OF_V10_FLOW_MOD_COMMAND_MODIFY_STRICT, 2).
+-define(OF_V10_FLOW_MOD_COMMAND_DELETE,        3).
+-define(OF_V10_FLOW_MOD_COMMAND_DELETE_STRICT, 4).
+
 -define(OF_V10_ETH_ALEN, 6).
 
 -define(OF_V10_MAX_PORT_NAME_LEN, 16).
@@ -388,6 +396,21 @@
            Actions    : ActionsLen/binary-unit:8,
            Data/binary >>.
 
+-define(OF_V10_FLOW_MOD_PATTERN,
+          << Match        : 40/binary,
+             Cookie       : 64,
+             Command      : 16,
+             IdleTimeout  : 16,
+             HardTimeout  : 16,
+             Priority     : 16,
+             BufferId     : 32, 
+             OutPort      : 16,
+             _Reserved    : 13,
+             Emerg        : 1
+             CheckOverlap : 1, 
+             SendFlowRem  : 1,
+             Actions/binary >>.
+
 -type of_v10_version() :: ?OF_V10_VERSION.
 
 -type of_v10_message_type() :: ?OF_V10_MESSAGE_TYPE_MIN..?OF_V10_MESSAGE_TYPE_MAX.
@@ -409,6 +432,8 @@
 -type of_v10_port_status_reason() :: ?OF_V10_PORT_STATUS_REASON_MIN..?OF_V10_PORT_STATUS_REASON_MAX.
 
 -type of_v10_action_type() :: ?OF_V10_ACTION_TYPE_MIN..?OF_V10_ACTION_TYPE_MAX.
+
+-type of_v10_flow_mod_command() :: ?OF_V10_FLOW_MOD_COMMAND_MIN..?OF_V10_FLOW_MOD_COMMAND_MAX.
 
 -record(of_v10_header, {
           version :: of_v10_version(),
@@ -632,6 +657,20 @@
           actions   :: [of_v10_action()],
           data      :: binary() }).
 
+-record(of_v10_flow_mod, {
+          match         :: #of_v10_flow_match{},
+          cookie        :: uint64(),
+          idle_timeout  :: uint16(),
+          hard_timeout  :: uint16(),
+          priority      :: uint16(),
+          buffer_id     :: uint32(),
+          out_port      :: uint16(),
+          send_flow_rem :: boolean(),
+          check_overlap :: boolean(), 
+          emerg         :: boolean(),
+          actions       :: [of_v10_action()]
+         }).
+
 -type of_v10_message() :: #of_v10_hello{} |
                           #of_v10_error{} |
                           #of_v10_echo_request{} |
@@ -645,6 +684,7 @@
                           #of_v10_packet_in{} |
                           #of_v10_flow_removed{} |
                           #of_v10_port_status{} |
-                          #of_v10_packet_out{}.
+                          #of_v10_packet_out{} |
+                          #of_v10_flow_mod{}.
 
 -endif.
