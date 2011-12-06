@@ -20,9 +20,8 @@
          decode_packet_in/1,
          decode_flow_removed/1,
          decode_port_status/1,
-         decode_packet_out/1]).
-
-%% CONTINUE FROM HERE: implement decode_flow_mod
+         decode_packet_out/1,
+         decode_flow_mod/1]).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -156,6 +155,24 @@ decode_packet_out(?OF_V10_PACKET_OUT_PATTERN) ->
       in_port   = InPort,
       actions   = ActionRecs,
       data      = Data
+     }.
+
+%% TODO: validate command
+-spec decode_flow_mod(binary()) -> #of_v10_flow_mod{}.
+decode_flow_mod(?OF_V10_FLOW_MOD_PATTERN) ->
+    _FlowMod = #of_v10_flow_mod{
+      match         = decode_flow_match(Match),
+      cookie        = Cookie,
+      command       = Command,
+      idle_timeout  = IdleTimeout,
+      hard_timeout  = HardTimeout,
+      priority      = Priority,
+      buffer_id     = BufferId,
+      out_port      = OutPort,
+      send_flow_rem = (SendFlowRem == 1),
+      check_overlap = (CheckOverlap == 1),
+      emerg         = (Emerg == 1),
+      actions       = decode_actions(Actions)
      }.
 
 %%
@@ -607,4 +624,10 @@ decode_packet_out_multiple_actions_data_test() ->
     Bin = of_v10_test_msgs:packet_out_multiple_actions_data_bin(),
     ActualRec = decode_packet_out(Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_multiple_actions_data_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_flow_mod_test() ->
+    Bin = of_v10_test_msgs:flow_mod_bin(),
+    ActualRec = decode_flow_mod(Bin),
+    ExpectedRec = of_v10_test_msgs:flow_mod_rec(),
     ?assertEqual(ExpectedRec, ActualRec).

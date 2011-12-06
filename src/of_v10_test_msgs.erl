@@ -81,7 +81,9 @@
          packet_out_multiple_actions_no_data_bin/0,
          packet_out_multiple_actions_no_data_rec/0,
          packet_out_multiple_actions_data_bin/0,
-         packet_out_multiple_actions_data_rec/0]).
+         packet_out_multiple_actions_data_rec/0,
+         flow_mod_bin/0,
+         flow_mod_rec/0]).
  
 -include_lib("../include/of_v10.hrl").
 
@@ -474,6 +476,44 @@ packet_out_multiple_actions_data_rec() ->
     Actions = [Action1, Action2, Action3],
     Data    = << 1, 2, 3, 4, 5 >>,
     packet_out_rec(Actions, Data).
+
+flow_mod_bin() ->
+    MatchBin = flow_match_bin(),
+    Action1Bin = action_output_bin(),
+    Action2Bin = action_set_dl_src_bin(),
+    Action3Bin = action_set_nw_src_bin(),
+    ActionsBin = << Action1Bin/binary, Action2Bin/binary, Action3Bin/binary >>,
+    << MatchBin/binary,
+       11111                        : 64,   %% Cookie
+       ?OF_V10_FLOW_MOD_COMMAND_ADD : 16,   %% Command
+       222                          : 16,   %% Idle timeout
+       333                          : 16,   %% Hard timeout
+       444                          : 16,   %% Priority
+       5555                         : 32,   %% Buffer ID
+       666                          : 16,   %% Out port
+       0                            : 13,   %% Reserved
+       1                            : 1,    %% Emerg
+       0                            : 1,    %% Check overlap
+       1                            : 1,    %% Send flow rem
+       ActionsBin/binary >>.
+
+flow_mod_rec() ->
+    Action1 = action_output_rec(),
+    Action2 = action_set_dl_src_rec(),
+    Action3 = action_set_nw_src_rec(),
+    Actions = [Action1, Action2, Action3],
+    #of_v10_flow_mod{match         = flow_match_rec(),
+                     cookie        = 11111,
+                     command       = ?OF_V10_FLOW_MOD_COMMAND_ADD,
+                     idle_timeout  = 222,
+                     hard_timeout  = 333,
+                     priority      = 444,
+                     buffer_id     = 5555,
+                     out_port      = 666,
+                     send_flow_rem = true,
+                     check_overlap = false,
+                     emerg         = true,
+                     actions       = Actions}.
 
 %%
 %% Internal functions.

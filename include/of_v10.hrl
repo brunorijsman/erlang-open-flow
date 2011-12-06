@@ -406,7 +406,7 @@
              BufferId     : 32, 
              OutPort      : 16,
              _Reserved    : 13,
-             Emerg        : 1
+             Emerg        : 1,
              CheckOverlap : 1, 
              SendFlowRem  : 1,
              Actions/binary >>.
@@ -660,6 +660,7 @@
 -record(of_v10_flow_mod, {
           match         :: #of_v10_flow_match{},
           cookie        :: uint64(),
+          command       :: uint16(),
           idle_timeout  :: uint16(),
           hard_timeout  :: uint16(),
           priority      :: uint16(),
