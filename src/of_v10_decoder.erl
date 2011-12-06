@@ -2,8 +2,6 @@
 %% @copyright 2011 Bruno Rijsman
 %%
 
-%% @@@ ### CONTINUE FROM HERE: ADD TEST CASE FOR FLOW REMOVED
-
 %% TODO: Check for correct length of binary in all decode functions
 
 -module(of_v10_decoder).
@@ -21,7 +19,8 @@
          decode_set_config/1,
          decode_packet_in/1,
          decode_flow_removed/1,
-         decode_port_status/1]).
+         decode_port_status/1,
+         decode_packet_out/1]).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -95,7 +94,7 @@ decode_features_reply(?OF_V10_FEATURES_REPLY_PATTERN) ->
       n_buffers    = NBuffers,
       n_tables     = NTables,
       capabilities = decode_capabilities(Capabilities),
-      actions      = decode_actions(Actions),
+      actions      = decode_actions_bitmap(Actions),
       ports        = decode_phy_ports(Ports)
      }.
 
@@ -147,6 +146,16 @@ decode_port_status(?OF_V10_PORT_STATUS_PATTERN) ->
       reason = Reason,
       desc   = DescRec}.
 
+-spec decode_packet_out(binary()) -> #of_v10_packet_out{}.
+decode_packet_out(?OF_V10_PACKET_OUT_PATTERN) ->
+    ActionRecs = decode_actions(Actions),
+    _PacketOut = #of_v10_packet_out{
+      buffer_id = BufferId,
+      in_port   = InPort,
+      actions   = ActionRecs,
+      data      = Data
+     }.
+
 %%
 %% Internal functions.
 %%
@@ -163,8 +172,8 @@ decode_capabilities(?OF_V10_CAPABILITIES_PATTERN) ->
       arp_match_ip = (ArpMatchIp == 1)
      }.
 
--spec decode_actions(binary()) -> #of_v10_actions{}.
-decode_actions(?OF_V10_ACTIONS_BITMAP_PATTERN) ->
+-spec decode_actions_bitmap(binary()) -> #of_v10_actions{}.
+decode_actions_bitmap(?OF_V10_ACTIONS_BITMAP_PATTERN) ->
     _Actions = #of_v10_actions{
       output       = (Output == 1),
       set_vlan_id  = (SetVlanId == 1),
@@ -299,6 +308,47 @@ decode_flow_match(?OF_V10_FLOW_MATCH_PATTERN) ->
       tp_dst      = TpDst
      }.
 
+-spec decode_actions(binary()) -> [of_v10_action()].
+decode_actions(Actions) ->
+    decode_actions(Actions, []).
+    
+-spec decode_actions(binary(), [of_v10_action()]) -> [of_v10_action()].
+decode_actions(<<>>, ParsedActions) ->
+    lists:reverse(ParsedActions);
+decode_actions(?OF_V10_ACTIONS_PATTERN, ParsedActions) ->
+    BodyLen = Len-4,
+    << Body : BodyLen/binary, NewRest/binary >> = Rest,
+    Action = decode_action(Type, Body),
+    decode_actions(NewRest, [Action | ParsedActions]).
+
+-spec decode_action(uint16(), uint16()) -> of_v10_action().
+decode_action(?OF_V10_ACTION_TYPE_OUTPUT, ?OF_V10_ACTION_OUTPUT_PATTERN) ->
+    #of_v10_action_output{port = Port, max_len = MaxLen};
+decode_action(?OF_V10_ACTION_TYPE_SET_VLAN_VID, ?OF_V10_ACTION_SET_VLAN_VID_PATTERN) ->
+    #of_v10_action_set_vlan_vid{vlan_vid = VlanVid};
+decode_action(?OF_V10_ACTION_TYPE_SET_VLAN_PCP, ?OF_V10_ACTION_SET_VLAN_PCP_PATTERN) ->
+    #of_v10_action_set_vlan_pcp{vlan_pcp = VlanPcp};
+decode_action(?OF_V10_ACTION_TYPE_STRIP_VLAN, ?OF_V10_ACTION_STRIP_VLAN_PATTERN) ->
+    #of_v10_action_strip_vlan{};
+decode_action(?OF_V10_ACTION_TYPE_SET_DL_SRC, ?OF_V10_ACTION_SET_DL_ADDR_PATTERN) ->
+    #of_v10_action_set_dl_src{dl_src = DlAddr};
+decode_action(?OF_V10_ACTION_TYPE_SET_DL_DST, ?OF_V10_ACTION_SET_DL_ADDR_PATTERN) ->
+    #of_v10_action_set_dl_dst{dl_dst = DlAddr};
+decode_action(?OF_V10_ACTION_TYPE_SET_NW_SRC, ?OF_V10_ACTION_SET_NW_ADDR_PATTERN) ->
+    #of_v10_action_set_nw_src{nw_src = NwAddr};
+decode_action(?OF_V10_ACTION_TYPE_SET_NW_DST, ?OF_V10_ACTION_SET_NW_ADDR_PATTERN) ->
+    #of_v10_action_set_nw_dst{nw_dst = NwAddr};
+decode_action(?OF_V10_ACTION_TYPE_SET_NW_TOS, ?OF_V10_ACTION_SET_NW_TOS_PATTERN) ->
+    #of_v10_action_set_nw_tos{nw_tos = NwTos};
+decode_action(?OF_V10_ACTION_TYPE_SET_TP_SRC, ?OF_V10_ACTION_SET_TP_PORT_PATTERN) ->
+    #of_v10_action_set_tp_src{tp_src = TpPort};
+decode_action(?OF_V10_ACTION_TYPE_SET_TP_DST, ?OF_V10_ACTION_SET_TP_PORT_PATTERN) ->
+    #of_v10_action_set_tp_dst{tp_dst = TpPort};
+decode_action(?OF_V10_ACTION_TYPE_ENQUEUE, ?OF_V10_ACTION_ENQUEUE_PATTERN) ->
+    #of_v10_action_enqueue{port = Port, queue_id = QueueId};
+decode_action(?OF_V10_ACTION_TYPE_VENDOR, ?OF_V10_ACTION_VENDOR_PATTERN) ->
+    #of_v10_action_vendor{vendor = Vendor}.
+
 %%
 %% Unit tests.
 %%
@@ -307,31 +357,31 @@ decode_string_no_trailing_zero_test() ->
     Bin = << "hello" >>,
     ActualStr = decode_string(Bin),
     ExpectedStr = "hello",
-    ?assertEqual(ActualStr, ExpectedStr).
+    ?assertEqual(ExpectedStr, ActualStr).
 
 decode_string_trailing_zero_test() ->
     Bin = << "hello", 0, 1, 2, 3 >>,
     ActualStr = decode_string(Bin),
     ExpectedStr = "hello",
-    ?assertEqual(ActualStr, ExpectedStr).
+    ?assertEqual(ExpectedStr, ActualStr).
 
 decode_string_only_zero_test() ->
     Bin = << 0 >>,
     ActualStr = decode_string(Bin),
     ExpectedStr = "",
-    ?assertEqual(ActualStr, ExpectedStr).
+    ?assertEqual(ExpectedStr, ActualStr).
 
 decode_string_empty_test() ->
     Bin = << >>,
     ActualStr = decode_string(Bin),
     ExpectedStr = "",
-    ?assertEqual(ActualStr, ExpectedStr).
+    ?assertEqual(ExpectedStr, ActualStr).
 
 decode_header_test() ->
     Bin = of_v10_test_msgs:header_bin(),
     ActualRec = decode_header(Bin),
     ExpectedRec = of_v10_test_msgs:header_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
 
 decode_header_bad_version_test() ->
     Bin = of_v10_test_msgs:header_bad_version_bin(),
@@ -351,106 +401,208 @@ decode_hello_test() ->
     Bin = of_v10_test_msgs:hello_bin(),
     ActualRec = decode_hello(Bin),
     ExpectedRec = of_v10_test_msgs:hello_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
 
 decode_hello_with_extension_test() ->
     Bin = of_v10_test_msgs:hello_with_extension_bin(),
     ActualRec = decode_hello(Bin),
     ExpectedRec = of_v10_test_msgs:hello_with_extension_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
 
 decode_error_test() ->
     Bin = of_v10_test_msgs:error_bin(),
     ActualRec = decode_error(Bin),
     ExpectedRec = of_v10_test_msgs:error_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
 
 decode_error_with_data_test() ->
     Bin = of_v10_test_msgs:error_with_data_bin(),
     ActualRec = decode_error(Bin),
     ExpectedRec = of_v10_test_msgs:error_with_data_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
 
 decode_echo_request_test() ->
     Bin = of_v10_test_msgs:echo_request_bin(),
     ActualRec = decode_echo_request(Bin),
     ExpectedRec = of_v10_test_msgs:echo_request_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
 
 decode_echo_request_with_data_test() ->
     Bin = of_v10_test_msgs:echo_request_with_data_bin(),
     ActualRec = decode_echo_request(Bin),
     ExpectedRec = of_v10_test_msgs:echo_request_with_data_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
 
 decode_echo_reply_test() ->
     Bin = of_v10_test_msgs:echo_reply_bin(),
     ActualRec = decode_echo_reply(Bin),
     ExpectedRec = of_v10_test_msgs:echo_reply_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
 
 decode_echo_reply_with_data_test() ->
     Bin = of_v10_test_msgs:echo_reply_with_data_bin(),
     ActualRec = decode_echo_reply(Bin),
     ExpectedRec = of_v10_test_msgs:echo_reply_with_data_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
 
 decode_vendor_test() ->
     Bin = of_v10_test_msgs:vendor_bin(),
     ActualRec = decode_vendor(Bin),
     ExpectedRec = of_v10_test_msgs:vendor_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
 
 decode_vendor_with_data_test() ->
     Bin = of_v10_test_msgs:vendor_with_data_bin(),
     ActualRec = decode_vendor(Bin),
     ExpectedRec = of_v10_test_msgs:vendor_with_data_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
 
 decode_features_request_test() ->
     Bin = of_v10_test_msgs:features_request_bin(),
     ActualRec = decode_features_request(Bin),
     ExpectedRec = of_v10_test_msgs:features_request_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
 
 decode_features_reply_test() ->
     Bin = of_v10_test_msgs:features_reply_bin(),
     ActualRec = decode_features_reply(Bin),
     ExpectedRec = of_v10_test_msgs:features_reply_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
 
 decode_get_config_request_test() ->
     Bin = of_v10_test_msgs:get_config_request_bin(),
     ActualRec = decode_get_config_request(Bin),
     ExpectedRec = of_v10_test_msgs:get_config_request_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
 
 decode_get_config_reply_test() ->
     Bin = of_v10_test_msgs:get_config_reply_bin(),
     ActualRec = decode_get_config_reply(Bin),
     ExpectedRec = of_v10_test_msgs:get_config_reply_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
 
 decode_set_config_test() ->
     Bin = of_v10_test_msgs:set_config_bin(),
     ActualRec = decode_set_config(Bin),
     ExpectedRec = of_v10_test_msgs:set_config_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_in_test() ->
     Bin = of_v10_test_msgs:packet_in_bin(),
     ActualRec = decode_packet_in(Bin),
     ExpectedRec = of_v10_test_msgs:packet_in_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
 
 decode_flow_removed_test() ->
     Bin = of_v10_test_msgs:flow_removed_bin(),
     ActualRec = decode_flow_removed(Bin),
     ExpectedRec = of_v10_test_msgs:flow_removed_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
 
 decode_port_status_test() ->
     Bin = of_v10_test_msgs:port_status_bin(),
     ActualRec = decode_port_status(Bin),
     ExpectedRec = of_v10_test_msgs:port_status_rec(),
-    ?assertEqual(ActualRec, ExpectedRec).
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_packet_out_no_actions_no_data_test() ->
+    Bin = of_v10_test_msgs:packet_out_no_actions_no_data_bin(),
+    ActualRec = decode_packet_out(Bin),
+    ExpectedRec = of_v10_test_msgs:packet_out_no_actions_no_data_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_packet_out_no_actions_data_test() ->
+    Bin = of_v10_test_msgs:packet_out_no_actions_data_bin(),
+    ActualRec = decode_packet_out(Bin),
+    ExpectedRec = of_v10_test_msgs:packet_out_no_actions_data_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_packet_out_action_output_test() ->
+    Bin = of_v10_test_msgs:packet_out_action_output_bin(),
+    ActualRec = decode_packet_out(Bin),
+    ExpectedRec = of_v10_test_msgs:packet_out_action_output_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_packet_out_action_set_vlan_vid_test() ->
+    Bin = of_v10_test_msgs:packet_out_action_set_vlan_vid_bin(),
+    ActualRec = decode_packet_out(Bin),
+    ExpectedRec = of_v10_test_msgs:packet_out_action_set_vlan_vid_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_packet_out_action_set_vlan_pcp_test() ->
+    Bin = of_v10_test_msgs:packet_out_action_set_vlan_pcp_bin(),
+    ActualRec = decode_packet_out(Bin),
+    ExpectedRec = of_v10_test_msgs:packet_out_action_set_vlan_pcp_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_packet_out_action_stip_vlan_test() ->
+    Bin = of_v10_test_msgs:packet_out_action_strip_vlan_bin(),
+    ActualRec = decode_packet_out(Bin),
+    ExpectedRec = of_v10_test_msgs:packet_out_action_strip_vlan_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_packet_out_action_set_dl_src_test() ->
+    Bin = of_v10_test_msgs:packet_out_action_set_dl_src_bin(),
+    ActualRec = decode_packet_out(Bin),
+    ExpectedRec = of_v10_test_msgs:packet_out_action_set_dl_src_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_packet_out_action_set_dl_dst_test() ->
+    Bin = of_v10_test_msgs:packet_out_action_set_dl_dst_bin(),
+    ActualRec = decode_packet_out(Bin),
+    ExpectedRec = of_v10_test_msgs:packet_out_action_set_dl_dst_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_packet_out_action_set_nw_src_test() ->
+    Bin = of_v10_test_msgs:packet_out_action_set_nw_src_bin(),
+    ActualRec = decode_packet_out(Bin),
+    ExpectedRec = of_v10_test_msgs:packet_out_action_set_nw_src_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_packet_out_action_set_nw_dst_test() ->
+    Bin = of_v10_test_msgs:packet_out_action_set_nw_dst_bin(),
+    ActualRec = decode_packet_out(Bin),
+    ExpectedRec = of_v10_test_msgs:packet_out_action_set_nw_dst_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_packet_out_action_set_nw_tos_test() ->
+    Bin = of_v10_test_msgs:packet_out_action_set_nw_tos_bin(),
+    ActualRec = decode_packet_out(Bin),
+    ExpectedRec = of_v10_test_msgs:packet_out_action_set_nw_tos_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_packet_out_action_set_tp_src_test() ->
+    Bin = of_v10_test_msgs:packet_out_action_set_tp_src_bin(),
+    ActualRec = decode_packet_out(Bin),
+    ExpectedRec = of_v10_test_msgs:packet_out_action_set_tp_src_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_packet_out_action_set_tp_dst_test() ->
+    Bin = of_v10_test_msgs:packet_out_action_set_tp_dst_bin(),
+    ActualRec = decode_packet_out(Bin),
+    ExpectedRec = of_v10_test_msgs:packet_out_action_set_tp_dst_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_packet_out_action_enqueue_test() ->
+    Bin = of_v10_test_msgs:packet_out_action_enqueue_bin(),
+    ActualRec = decode_packet_out(Bin),
+    ExpectedRec = of_v10_test_msgs:packet_out_action_enqueue_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_packet_out_action_vendor_test() ->
+    Bin = of_v10_test_msgs:packet_out_action_vendor_bin(),
+    ActualRec = decode_packet_out(Bin),
+    ExpectedRec = of_v10_test_msgs:packet_out_action_vendor_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_packet_out_multiple_actions_no_data_test() ->
+    Bin = of_v10_test_msgs:packet_out_multiple_actions_no_data_bin(),
+    ActualRec = decode_packet_out(Bin),
+    ExpectedRec = of_v10_test_msgs:packet_out_multiple_actions_no_data_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_packet_out_multiple_actions_data_test() ->
+    Bin = of_v10_test_msgs:packet_out_multiple_actions_data_bin(),
+    ActualRec = decode_packet_out(Bin),
+    ExpectedRec = of_v10_test_msgs:packet_out_multiple_actions_data_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).

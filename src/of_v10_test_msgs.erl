@@ -4,6 +4,10 @@
 
 -module(of_v10_test_msgs).
 
+%% TODO: Have more succint way:
+%% generate(request_with_data, bin)
+%% that allows the testing to be done much simpler (generator)
+
 -export([header_bin/0,
          header_rec/0,
          header_bad_version_bin/0,
@@ -43,8 +47,42 @@
          flow_removed_bin/0,
          flow_removed_rec/0,
          port_status_bin/0,
-         port_status_rec/0]).
-
+         port_status_rec/0,
+         packet_out_no_actions_no_data_bin/0,
+         packet_out_no_actions_no_data_rec/0,
+         packet_out_no_actions_data_bin/0,
+         packet_out_no_actions_data_rec/0,
+         packet_out_action_output_bin/0,
+         packet_out_action_output_rec/0,
+         packet_out_action_set_vlan_vid_bin/0,
+         packet_out_action_set_vlan_vid_rec/0,
+         packet_out_action_set_vlan_pcp_bin/0,
+         packet_out_action_set_vlan_pcp_rec/0,
+         packet_out_action_strip_vlan_bin/0,
+         packet_out_action_strip_vlan_rec/0,
+         packet_out_action_set_dl_src_bin/0,
+         packet_out_action_set_dl_src_rec/0,
+         packet_out_action_set_dl_dst_bin/0,
+         packet_out_action_set_dl_dst_rec/0,
+         packet_out_action_set_nw_src_bin/0,
+         packet_out_action_set_nw_src_rec/0,
+         packet_out_action_set_nw_dst_bin/0,
+         packet_out_action_set_nw_dst_rec/0,
+         packet_out_action_set_nw_tos_bin/0,
+         packet_out_action_set_nw_tos_rec/0,
+         packet_out_action_set_tp_src_bin/0,
+         packet_out_action_set_tp_src_rec/0,
+         packet_out_action_set_tp_dst_bin/0,
+         packet_out_action_set_tp_dst_rec/0,
+         packet_out_action_enqueue_bin/0,
+         packet_out_action_enqueue_rec/0,
+         packet_out_action_vendor_bin/0,
+         packet_out_action_vendor_rec/0,
+         packet_out_multiple_actions_no_data_bin/0,
+         packet_out_multiple_actions_no_data_rec/0,
+         packet_out_multiple_actions_data_bin/0,
+         packet_out_multiple_actions_data_rec/0]).
+ 
 -include_lib("../include/of_v10.hrl").
 
 %%
@@ -153,7 +191,7 @@ features_request_rec() ->
 
 features_reply_bin() ->
     CapabilitiesBin = capabilities_bin(),
-    ActionsBin = actions_bin(),
+    ActionsBin = actions_bitmap_bin(),
     Port1Bin = phy_port_bin(),
     Port2Bin = phy_port_bin(),
     << 123456789 : 64,             %% Data path ID
@@ -170,7 +208,7 @@ features_reply_rec() ->
                            n_buffers    = 5000,
                            n_tables     = 50,
                            capabilities = capabilities_rec(),
-                           actions      = actions_rec(),
+                           actions      = actions_bitmap_rec(),
                            ports        = [phy_port_rec(), phy_port_rec()]}.
 
 get_config_request_bin() ->
@@ -255,6 +293,188 @@ port_status_rec() ->
     #of_v10_port_status{reason = ?OF_V10_PORT_STATUS_REASON_DELETE,
                         desc   = phy_port_rec()}.
 
+packet_out_no_actions_no_data_bin() ->
+    ActionsBin = << >>, 
+    DataBin    = << >>,
+    packet_out_bin(ActionsBin, DataBin).
+       
+packet_out_no_actions_no_data_rec() ->
+    Actions = [],
+    Data    = << >>,
+    packet_out_rec(Actions, Data).
+
+packet_out_no_actions_data_bin() ->
+    ActionsBin = << >>, 
+    DataBin    = << 1, 2, 3, 4, 5 >>,
+    packet_out_bin(ActionsBin, DataBin).
+       
+packet_out_no_actions_data_rec() ->
+    Actions = [],
+    Data    = << 1, 2, 3, 4, 5 >>,
+    packet_out_rec(Actions, Data).
+
+packet_out_action_output_bin() ->
+    ActionsBin = action_output_bin(),
+    DataBin = << 1, 2, 3, 4, 5 >>,
+    packet_out_bin(ActionsBin, DataBin).
+
+packet_out_action_output_rec() ->
+    Actions = [action_output_rec()],
+    Data    = << 1, 2, 3, 4, 5 >>,
+    packet_out_rec(Actions, Data).
+
+packet_out_action_set_vlan_vid_bin() ->
+    ActionsBin = action_set_vlan_vid_bin(),
+    DataBin = << 1, 2, 3, 4, 5 >>,
+    packet_out_bin(ActionsBin, DataBin).
+
+packet_out_action_set_vlan_vid_rec() ->
+    Actions = [action_set_vlan_vid_rec()],
+    Data    = << 1, 2, 3, 4, 5 >>,
+    packet_out_rec(Actions, Data).
+
+packet_out_action_set_vlan_pcp_bin() ->
+    ActionsBin = action_set_vlan_pcp_bin(),
+    DataBin = << 1, 2, 3, 4, 5 >>,
+    packet_out_bin(ActionsBin, DataBin).
+
+packet_out_action_set_vlan_pcp_rec() ->
+    Actions = [action_set_vlan_pcp_rec()],
+    Data    = << 1, 2, 3, 4, 5 >>,
+    packet_out_rec(Actions, Data).
+
+packet_out_action_strip_vlan_bin() ->
+    ActionsBin = action_strip_vlan_bin(),
+    DataBin = << 1, 2, 3, 4, 5 >>,
+    packet_out_bin(ActionsBin, DataBin).
+
+packet_out_action_strip_vlan_rec() ->
+    Actions = [action_strip_vlan_rec()],
+    Data    = << 1, 2, 3, 4, 5 >>,
+    packet_out_rec(Actions, Data).
+
+packet_out_action_set_dl_src_bin() ->
+    ActionsBin = action_set_dl_src_bin(),
+    DataBin = << 1, 2, 3, 4, 5 >>,
+    packet_out_bin(ActionsBin, DataBin).
+
+packet_out_action_set_dl_src_rec() ->
+    Actions = [action_set_dl_src_rec()],
+    Data    = << 1, 2, 3, 4, 5 >>,
+    packet_out_rec(Actions, Data).
+
+packet_out_action_set_dl_dst_bin() ->
+    ActionsBin = action_set_dl_dst_bin(),
+    DataBin = << 1, 2, 3, 4, 5 >>,
+    packet_out_bin(ActionsBin, DataBin).
+
+packet_out_action_set_dl_dst_rec() ->
+    Actions = [action_set_dl_dst_rec()],
+    Data    = << 1, 2, 3, 4, 5 >>,
+    packet_out_rec(Actions, Data).
+
+packet_out_action_set_nw_src_bin() ->
+    ActionsBin = action_set_nw_src_bin(),
+    DataBin = << 1, 2, 3, 4, 5 >>,
+    packet_out_bin(ActionsBin, DataBin).
+
+packet_out_action_set_nw_src_rec() ->
+    Actions = [action_set_nw_src_rec()],
+    Data    = << 1, 2, 3, 4, 5 >>,
+    packet_out_rec(Actions, Data).
+
+packet_out_action_set_nw_dst_bin() ->
+    ActionsBin = action_set_nw_dst_bin(),
+    DataBin = << 1, 2, 3, 4, 5 >>,
+    packet_out_bin(ActionsBin, DataBin).
+
+packet_out_action_set_nw_dst_rec() ->
+    Actions = [action_set_nw_dst_rec()],
+    Data    = << 1, 2, 3, 4, 5 >>,
+    packet_out_rec(Actions, Data).
+
+packet_out_action_set_nw_tos_bin() ->
+    ActionsBin = action_set_nw_tos_bin(),
+    DataBin = << 1, 2, 3, 4, 5 >>,
+    packet_out_bin(ActionsBin, DataBin).
+
+packet_out_action_set_nw_tos_rec() ->
+    Actions = [action_set_nw_tos_rec()],
+    Data    = << 1, 2, 3, 4, 5 >>,
+    packet_out_rec(Actions, Data).
+
+packet_out_action_set_tp_src_bin() ->
+    ActionsBin = action_set_tp_src_bin(),
+    DataBin = << 1, 2, 3, 4, 5 >>,
+    packet_out_bin(ActionsBin, DataBin).
+
+packet_out_action_set_tp_src_rec() ->
+    Actions = [action_set_tp_src_rec()],
+    Data    = << 1, 2, 3, 4, 5 >>,
+    packet_out_rec(Actions, Data).
+
+packet_out_action_set_tp_dst_bin() ->
+    ActionsBin = action_set_tp_dst_bin(),
+    DataBin = << 1, 2, 3, 4, 5 >>,
+    packet_out_bin(ActionsBin, DataBin).
+
+packet_out_action_set_tp_dst_rec() ->
+    Actions = [action_set_tp_dst_rec()],
+    Data    = << 1, 2, 3, 4, 5 >>,
+    packet_out_rec(Actions, Data).
+
+packet_out_action_enqueue_bin() ->
+    ActionsBin = action_enqueue_bin(),
+    DataBin = << 1, 2, 3, 4, 5 >>,
+    packet_out_bin(ActionsBin, DataBin).
+
+packet_out_action_enqueue_rec() ->
+    Actions = [action_enqueue_rec()],
+    Data    = << 1, 2, 3, 4, 5 >>,
+    packet_out_rec(Actions, Data).
+
+packet_out_action_vendor_bin() ->
+    ActionsBin = action_vendor_bin(),
+    DataBin = << 1, 2, 3, 4, 5 >>,
+    packet_out_bin(ActionsBin, DataBin).
+
+packet_out_action_vendor_rec() ->
+    Actions = [action_vendor_rec()],
+    Data    = << 1, 2, 3, 4, 5 >>,
+    packet_out_rec(Actions, Data).
+
+packet_out_multiple_actions_no_data_bin() ->
+    Action1Bin = action_output_bin(),
+    Action2Bin = action_set_dl_src_bin(),
+    Action3Bin = action_set_nw_src_bin(),
+    ActionsBin = << Action1Bin/binary, Action2Bin/binary, Action3Bin/binary >>,
+    DataBin = << >>,
+    packet_out_bin(ActionsBin, DataBin).
+
+packet_out_multiple_actions_no_data_rec() ->
+    Action1 = action_output_rec(),
+    Action2 = action_set_dl_src_rec(),
+    Action3 = action_set_nw_src_rec(),
+    Actions = [Action1, Action2, Action3],
+    Data    = << >>,
+    packet_out_rec(Actions, Data).
+
+packet_out_multiple_actions_data_bin() ->
+    Action1Bin = action_output_bin(),
+    Action2Bin = action_set_dl_src_bin(),
+    Action3Bin = action_set_nw_src_bin(),
+    ActionsBin = << Action1Bin/binary, Action2Bin/binary, Action3Bin/binary >>,
+    DataBin = << 1, 2, 3, 4, 5 >>,
+    packet_out_bin(ActionsBin, DataBin).
+
+packet_out_multiple_actions_data_rec() ->
+    Action1 = action_output_rec(),
+    Action2 = action_set_dl_src_rec(),
+    Action3 = action_set_nw_src_rec(),
+    Actions = [Action1, Action2, Action3],
+    Data    = << 1, 2, 3, 4, 5 >>,
+    packet_out_rec(Actions, Data).
+
 %%
 %% Internal functions.
 %%
@@ -279,7 +499,7 @@ capabilities_rec() ->
                          queue_stats  = false,
                          arp_match_ip = true}.
 
-actions_bin() ->
+actions_bitmap_bin() ->
     << 0 : 20,                     %% Reserved
        1 : 1,                      %% Enqueue
        1 : 1,                      %% Set transport destination
@@ -294,7 +514,7 @@ actions_bin() ->
        1 : 1,                      %% Set VLAN ID
        1 : 1 >>.                   %% Output
 
-actions_rec() ->
+actions_bitmap_rec() ->
     #of_v10_actions{output       = true,
                     set_vlan_id  = true,
                     set_vlan_pcp = true,
@@ -462,3 +682,139 @@ flow_match_rec() ->
                        nw_dst      = 7777,
                        tp_src      = 88,
                        tp_dst      = 99}.
+
+packet_out_bin(ActionsBin, DataBin) ->
+    ActionsLen = size(ActionsBin),
+    << 11111      : 32,  %% Buffer ID,
+       2222       : 16,  %% In port
+       ActionsLen : 16, 
+       ActionsBin/binary,
+       DataBin/binary >>.
+
+packet_out_rec(Actions, Data) ->
+    #of_v10_packet_out{buffer_id = 11111,
+                       in_port   = 2222,
+                       actions   = Actions,
+                       data      = Data}.
+
+action_output_bin() ->
+    << ?OF_V10_ACTION_TYPE_OUTPUT       : 16,
+       8                                : 16,     %% Action length
+       3333                             : 16,     %% Port
+       4444                             : 16 >>.  %% Max length
+
+action_output_rec() ->
+    #of_v10_action_output{port = 3333, max_len = 4444}.
+
+action_set_vlan_vid_bin() ->
+    << ?OF_V10_ACTION_TYPE_SET_VLAN_VID : 16,
+       8                                : 16,     %% Action length
+       3333                             : 16,     %% VLAN VID
+       0                                : 16 >>.  %% Padding
+
+action_set_vlan_vid_rec() ->
+    #of_v10_action_set_vlan_vid{vlan_vid = 3333}.
+
+action_set_vlan_pcp_bin() ->
+    << ?OF_V10_ACTION_TYPE_SET_VLAN_PCP : 16,
+       8                                : 16,     %% Action length
+       33                               : 8,      %% VLAN PCP
+       0                                : 24 >>.  %% Padding
+
+action_set_vlan_pcp_rec() ->
+    #of_v10_action_set_vlan_pcp{vlan_pcp = 33}.
+
+action_strip_vlan_bin() ->
+    << ?OF_V10_ACTION_TYPE_STRIP_VLAN   : 16,
+       8                                : 16,     %% Action length
+       0                                : 32 >>.  %% Padding
+
+action_strip_vlan_rec() ->
+    #of_v10_action_strip_vlan{}.
+
+action_set_dl_src_bin() ->
+    HwAddrBin = hw_addr_bin(),
+    << ?OF_V10_ACTION_TYPE_SET_DL_SRC   : 16,
+       16                               : 16,     %% Action length
+       HwAddrBin/binary,                          %% Datalink src addr
+       0                                : 48 >>.  %% Padding
+
+action_set_dl_src_rec() ->
+    HwAddrBin = hw_addr_bin(),
+    #of_v10_action_set_dl_src{dl_src = HwAddrBin}.
+
+action_set_dl_dst_bin() ->
+    HwAddrBin = hw_addr_bin(),
+    << ?OF_V10_ACTION_TYPE_SET_DL_DST   : 16,
+       16                               : 16,     %% Action length
+       HwAddrBin/binary,                          %% Datalink dst addr
+       0                                : 48 >>.  %% Padding
+
+action_set_dl_dst_rec() ->
+    HwAddrBin = hw_addr_bin(),
+    #of_v10_action_set_dl_dst{dl_dst = HwAddrBin}.
+
+action_set_nw_src_bin() ->
+    << ?OF_V10_ACTION_TYPE_SET_NW_SRC   : 16,
+       8                                : 16,     %% Action length
+       3333                             : 32 >>.  %% Network src addr
+
+action_set_nw_src_rec() ->
+    #of_v10_action_set_nw_src{nw_src = 3333}.
+
+action_set_nw_dst_bin() ->
+    << ?OF_V10_ACTION_TYPE_SET_NW_DST   : 16,
+       8                                : 16,     %% Action length
+       3333                             : 32 >>.  %% Network dst addr
+
+action_set_nw_dst_rec() ->
+    #of_v10_action_set_nw_dst{nw_dst = 3333}.
+
+action_set_nw_tos_bin() ->
+    << ?OF_V10_ACTION_TYPE_SET_NW_TOS   : 16,
+       8                                : 16,     %% Action length
+       33                               : 8,      %% Network TOS
+       0                                : 24 >>.  %% Padding
+
+action_set_nw_tos_rec() ->
+    #of_v10_action_set_nw_tos{nw_tos = 33}.
+
+action_set_tp_src_bin() ->
+    << ?OF_V10_ACTION_TYPE_SET_TP_SRC   : 16,
+       8                                : 16,     %% Action length
+       333                              : 16,     %% Transport src port
+       0                                : 16 >>.  %% Padding
+
+action_set_tp_src_rec() ->
+    #of_v10_action_set_tp_src{tp_src = 333}.
+
+action_set_tp_dst_bin() ->
+    << ?OF_V10_ACTION_TYPE_SET_TP_DST   : 16,
+       8                                : 16,     %% Action length
+       333                              : 16,     %% Transport dst port
+       0                                : 16 >>.  %% Padding
+
+action_set_tp_dst_rec() ->
+    #of_v10_action_set_tp_dst{tp_dst = 333}.
+
+action_enqueue_bin() ->
+    << ?OF_V10_ACTION_TYPE_ENQUEUE      : 16,
+       16                               : 16,     %% Action length
+       333                              : 16,     %% Port
+       0                                : 48,     %% Padding
+       4444                             : 32 >>.  %% Queue ID
+
+action_enqueue_rec() ->
+    #of_v10_action_enqueue{port = 333, queue_id = 4444}.
+
+action_vendor_bin() ->
+    << ?OF_V10_ACTION_TYPE_VENDOR       : 16,
+       8                                : 16,     %% Action length
+       3333                             : 32 >>.  %% Vendor
+
+action_vendor_rec() ->
+    #of_v10_action_vendor{vendor = 3333}.
+
+%% TODO: negative test cases
+%% TODO: unrecognized action
+%% TODO: wrong action length

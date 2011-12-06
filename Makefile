@@ -1,5 +1,7 @@
 ERL = erl
 
+# TODO: tests are run every time, even if nothing changed
+
 MAKE_ERL = 'case make:all() of \
               up_to_date ->    \
                 halt(0);       \

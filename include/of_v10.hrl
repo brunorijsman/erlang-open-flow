@@ -4,10 +4,8 @@
 %% TODO: Fix the include paths
 -include_lib("../include/of_types.hrl").
 
-%% Protocol version
 -define(OF_V10_VERSION, 1).
 
-%% Message type
 -define(OF_V10_MESSAGE_TYPE_MIN,                      0).
 -define(OF_V10_MESSAGE_TYPE_MAX,                      21).
 -define(OF_V10_MESSAGE_TYPE_HELLO,                    0).
@@ -33,7 +31,6 @@
 -define(OF_V10_MESSAGE_TYPE_QUEUE_GET_CONFIG_REQUEST, 20).
 -define(OF_V10_MESSAGE_TYPE_QUEUE_GET_CONFIG_REPLY,   21).
 
-%% Error types
 -define(OF_V10_ERROR_TYPE_MIN,                  0).
 -define(OF_V10_ERROR_TYPE_MAX,                  5).
 -define(OF_V10_ERROR_TYPE_HELLO_FAILED,         0).
@@ -43,7 +40,6 @@
 -define(OF_V10_ERROR_TYPE_PORT_MOD_FAILED,      4).
 -define(OF_V10_ERROR_TYPE_QUEUE_OP_FAILED,      5).
 
-%% Error codes
 -define(OF_V10_ERROR_CODE_MIN, 0).
 -define(OF_V10_ERROR_CODE_MAX, 8).
 
@@ -84,22 +80,19 @@
 -define(OF_V10_ERROR_CODE_QUEUE_OP_FAILED_BAD_QUEUE, 1).
 -define(OF_V10_ERROR_CODE_QUEUE_OP_FAILED_EPERM,     2).
 
-%% Port numbers
--define(OF_V10_PORT_NO_MAX,        0xff00).
--define(OF_V10_PORT_NO_IN,         0xfff8).
--define(OF_V10_PORT_NO_TABLE,      0xfff9).
--define(OF_V10_PORT_NO_NORMAL,     0xfffa).
--define(OF_V10_PORT_NO_FLOOD,      0xfffb).
--define(OF_V10_PORT_NO_ALL,        0xfffc).
--define(OF_V10_PORT_NO_CONTROLLER, 0xfffd).
--define(OF_V10_PORT_NO_LOCAL,      0xfffe).
--define(OF_V10_PORT_NO_NONE,       0xffff).
+-define(OF_V10_PORT_NO_MAX,        16#ff00).
+-define(OF_V10_PORT_NO_IN,         16#fff8).
+-define(OF_V10_PORT_NO_TABLE,      16#fff9).
+-define(OF_V10_PORT_NO_NORMAL,     16#fffa).
+-define(OF_V10_PORT_NO_FLOOD,      16#fffb).
+-define(OF_V10_PORT_NO_ALL,        16#fffc).
+-define(OF_V10_PORT_NO_CONTROLLER, 16#fffd).
+-define(OF_V10_PORT_NO_LOCAL,      16#fffe).
+-define(OF_V10_PORT_NO_NONE,       16#ffff).
 
-%% Queue property types
 -define(OF_V10_QUEUE_PROPERTY_TYPE_NONE,     0).
 -define(OF_V10_QUEUE_PROPERTY_TYPE_MIN_RATE, 1).
 
-%% STP port states
 -define(OF_V10_STP_PORT_STATE_MIN,     0).
 -define(OF_V10_STP_PORT_STATE_MAX,     3).
 -define(OF_V10_STP_PORT_STATE_LISTEN,  0).
@@ -107,37 +100,48 @@
 -define(OF_V10_STP_PORT_STATE_FORWARD, 2).
 -define(OF_V10_STP_PORT_STATE_BLOCK,   3).
 
-%% Fragment handling
 -define(OF_V10_FRAG_HANDLING_MIN,    0).
 -define(OF_V10_FRAG_HANDLING_MAX,    2).
 -define(OF_V10_FRAG_HANDLING_NORMAL, 0).
 -define(OF_V10_FRAG_HANDLING_DROP,   1).
 -define(OF_V10_FRAG_HANDLING_REASM,  2).
 
-%% Packet in reasons
 -define(OF_V10_PACKET_IN_REASON_MIN,      0).
 -define(OF_V10_PACKET_IN_REASON_MAX,      1).
 -define(OF_V10_PACKET_IN_REASON_NO_MATCH, 0).
 -define(OF_V10_PACKET_IN_REASON_ACTION,   1).
 
-%% Flow removed reasons
 -define(OF_V10_FLOW_REMOVED_REASON_MIN,          0).
 -define(OF_V10_FLOW_REMOVED_REASON_MAX,          2).
 -define(OF_V10_FLOW_REMOVED_REASON_IDLE_TIMEOUT, 0).
 -define(OF_V10_FLOW_REMOVED_REASON_HARD_TIMEOUT, 1).
 -define(OF_V10_FLOW_REMOVED_REASON_DELETE,       2).
 
-%% Port status reasons
 -define(OF_V10_PORT_STATUS_REASON_MIN,    0).
 -define(OF_V10_PORT_STATUS_REASON_MAX,    2).
 -define(OF_V10_PORT_STATUS_REASON_ADD,    0).
 -define(OF_V10_PORT_STATUS_REASON_DELETE, 1).
 -define(OF_V10_PORT_STATUS_REASON_MODIFY, 2).
 
-%% Maximum length of hardware address
+%% TODO: Is there some way to set the type 0..11 or 0xffff?
+-define(OF_V10_ACTION_TYPE_MIN,          0).
+-define(OF_V10_ACTION_TYPE_MAX,          16#ffff).
+-define(OF_V10_ACTION_TYPE_OUTPUT,       0).
+-define(OF_V10_ACTION_TYPE_SET_VLAN_VID, 1).
+-define(OF_V10_ACTION_TYPE_SET_VLAN_PCP, 2).
+-define(OF_V10_ACTION_TYPE_STRIP_VLAN,   3).
+-define(OF_V10_ACTION_TYPE_SET_DL_SRC,   4).
+-define(OF_V10_ACTION_TYPE_SET_DL_DST,   5).
+-define(OF_V10_ACTION_TYPE_SET_NW_SRC,   6).
+-define(OF_V10_ACTION_TYPE_SET_NW_DST,   7).
+-define(OF_V10_ACTION_TYPE_SET_NW_TOS,   8).
+-define(OF_V10_ACTION_TYPE_SET_TP_SRC,   9).
+-define(OF_V10_ACTION_TYPE_SET_TP_DST,   10).
+-define(OF_V10_ACTION_TYPE_ENQUEUE,      11).
+-define(OF_V10_ACTION_TYPE_VENDOR,       16#ffff).
+
 -define(OF_V10_ETH_ALEN, 6).
 
-%% Maximum length of a port name (inluding terminating null character)
 -define(OF_V10_MAX_PORT_NAME_LEN, 16).
 
 -define(OF_V10_HEADER_LEN, 8).
@@ -334,6 +338,56 @@
            _Pad   : 56,
            Desc   : 48/binary >>.
 
+-define(OF_V10_ACTIONS_PATTERN,
+        << Type : 16,
+           Len  : 16,
+           Rest/binary >>.
+
+-define(OF_V10_ACTION_OUTPUT_PATTERN,
+        << Port   : 16,
+           MaxLen : 16 >>.
+
+-define(OF_V10_ACTION_SET_VLAN_VID_PATTERN,
+        << VlanVid : 16,
+           _Pad    : 16 >>.
+
+-define(OF_V10_ACTION_SET_VLAN_PCP_PATTERN,
+        << VlanPcp : 8,
+           _Pad2   : 24 >>.
+
+-define(OF_V10_ACTION_STRIP_VLAN_PATTERN,
+        << _Pad : 32 >>.
+
+-define(OF_V10_ACTION_SET_DL_ADDR_PATTERN,
+        << DlAddr : ?OF_V10_ETH_ALEN/binary-unit:8,
+           _Pad   : 48 >>.
+
+-define(OF_V10_ACTION_SET_NW_ADDR_PATTERN,
+        << NwAddr : 32 >>.
+
+-define(OF_V10_ACTION_SET_NW_TOS_PATTERN,
+        << NwTos : 8,
+           _Pad  : 24 >>.
+
+-define(OF_V10_ACTION_SET_TP_PORT_PATTERN,
+        << TpPort : 16,
+           _Pad   : 16 >>.
+
+-define(OF_V10_ACTION_ENQUEUE_PATTERN,
+        << Port    : 16,
+           _Pad    : 48,
+           QueueId : 32 >>.
+
+-define(OF_V10_ACTION_VENDOR_PATTERN,
+        << Vendor : 32 >>.
+
+-define(OF_V10_PACKET_OUT_PATTERN,
+        << BufferId   : 32,
+           InPort     : 16,
+           ActionsLen : 16,
+           Actions    : ActionsLen/binary-unit:8,
+           Data/binary >>.
+
 -type of_v10_version() :: ?OF_V10_VERSION.
 
 -type of_v10_message_type() :: ?OF_V10_MESSAGE_TYPE_MIN..?OF_V10_MESSAGE_TYPE_MAX.
@@ -353,6 +407,8 @@
 -type of_v10_flow_removed_reason() :: ?OF_V10_FLOW_REMOVED_REASON_MIN..?OF_V10_FLOW_REMOVED_REASON_MAX.
 
 -type of_v10_port_status_reason() :: ?OF_V10_PORT_STATUS_REASON_MIN..?OF_V10_PORT_STATUS_REASON_MAX.
+
+-type of_v10_action_type() :: ?OF_V10_ACTION_TYPE_MIN..?OF_V10_ACTION_TYPE_MAX.
 
 -record(of_v10_header, {
           version :: of_v10_version(),
@@ -512,6 +568,70 @@
           reason :: of_v10_port_status_reason(),
           desc   :: #of_v10_phy_port{} }).
 
+-record(of_v10_action_header, {
+          type :: of_v10_action_type(),
+          len  :: uint16() }).
+
+-record(of_v10_action_output, {
+          port    :: uint16(),
+          max_len :: uint16() }).
+
+-record(of_v10_action_set_vlan_vid, {
+          vlan_vid :: uint16() }).
+
+-record(of_v10_action_set_vlan_pcp, {
+          vlan_pcp :: uint8() }).
+
+-record(of_v10_action_strip_vlan, {}).
+
+-record(of_v10_action_set_dl_src, {
+          dl_src :: of_hw_addr() }).
+
+-record(of_v10_action_set_dl_dst, {
+          dl_dst :: of_hw_addr() }).
+
+-record(of_v10_action_set_nw_src, {
+          nw_src :: uint32() }).
+
+-record(of_v10_action_set_nw_dst, {
+          nw_dst :: uint32() }).
+
+-record(of_v10_action_set_nw_tos, {
+          nw_tos :: uint8() }).
+
+-record(of_v10_action_set_tp_src, {
+          tp_src :: uint16() }).
+
+-record(of_v10_action_set_tp_dst, {
+          tp_dst :: uint16() }).
+
+-record(of_v10_action_enqueue, {
+          port     :: uint16(),
+          queue_id :: uint32() }).
+
+-record(of_v10_action_vendor, {
+          vendor :: uint32() }).
+
+-type of_v10_action() :: #of_v10_action_output{} |
+                         #of_v10_action_set_vlan_vid{} |
+                         #of_v10_action_set_vlan_pcp{} |
+                         #of_v10_action_strip_vlan{} |
+                         #of_v10_action_set_dl_src{} |
+                         #of_v10_action_set_dl_dst{} |
+                         #of_v10_action_set_nw_src{} |
+                         #of_v10_action_set_nw_dst{} |
+                         #of_v10_action_set_nw_tos{} |
+                         #of_v10_action_set_tp_src{} |
+                         #of_v10_action_set_tp_dst{} |
+                         #of_v10_action_enqueue{} |
+                         #of_v10_action_vendor{}.
+
+-record(of_v10_packet_out, {
+          buffer_id :: uint16(),
+          in_port   :: uint16(),
+          actions   :: [of_v10_action()],
+          data      :: binary() }).
+
 -type of_v10_message() :: #of_v10_hello{} |
                           #of_v10_error{} |
                           #of_v10_echo_request{} |
@@ -524,6 +644,7 @@
                           #of_v10_set_config{} |
                           #of_v10_packet_in{} |
                           #of_v10_flow_removed{} |
-                          #of_v10_port_status{}.
+                          #of_v10_port_status{} |
+                          #of_v10_packet_out{}.
 
 -endif.
