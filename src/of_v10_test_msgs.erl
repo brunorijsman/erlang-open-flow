@@ -221,20 +221,39 @@ packet_in_rec() ->
                       data      = << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 >>}.
 
 flow_removed_bin() ->
-    %% @@@ TODO
-    << >>.
+    Match = flow_match_bin(),
+    << Match/binary,
+       11111                                    : 64,     %% Cookie
+       222                                      : 16,     %% Priority
+       ?OF_V10_FLOW_REMOVED_REASON_HARD_TIMEOUT : 8,      %% Reason
+       0                                        : 8,      %% Padding
+       3333                                     : 32,     %% Duration (sec)
+       4444                                     : 32,     %% Duration (nsec)
+       555                                      : 16,     %% Idle timeout
+       0                                        : 16,     %% Padding
+       66666                                    : 64,     %% Packet count
+       77777                                    : 64 >>.  %% Byte count
 
 flow_removed_rec() ->
-    %% @@@ TODO
-    #of_v10_flow_removed{}.
+    #of_v10_flow_removed{match         = flow_match_rec(),
+                         cookie        = 11111,
+                         priority      = 222,
+                         reason        = ?OF_V10_FLOW_REMOVED_REASON_HARD_TIMEOUT,
+                         duration_sec  = 3333,
+                         duration_nsec = 4444,
+                         idle_timeout  = 555,
+                         packet_count  = 66666,
+                         byte_count    = 77777}.
 
 port_status_bin() ->
-    %% @@@ TODO
-    << >>.
+    Desc = phy_port_bin(),
+    << ?OF_V10_PORT_STATUS_REASON_DELETE : 8,   %% Reason
+       0                                 : 56,  %% Padding
+       Desc/binary >>.
 
 port_status_rec() ->
-    %% @@@ TODO
-    #of_v10_flow_removed{}.
+    #of_v10_port_status{reason = ?OF_V10_PORT_STATUS_REASON_DELETE,
+                        desc   = phy_port_rec()}.
 
 %%
 %% Internal functions.
@@ -380,3 +399,66 @@ phy_port_rec() ->
                      advertised_features = phy_port_features_rec(),
                      supported_features  = phy_port_features_rec(),
                      peer_features       = phy_port_features_rec()}.
+
+flow_match_wildcards_bin() ->
+    << 0  : 10,    %% Reserved
+       1  : 1,     %% Network TOS 
+       0  : 1,     %% Datalink VLAN PCP
+       11 : 6,     %% Network destination address wildcard bit count
+       22 : 6,     %% Network source address wildcard bit count
+       1  : 1,     %% Transport destination port
+       0  : 1,     %% Transport source port
+       1  : 1,     %% Network protocol
+       0  : 1,     %% Datalink type
+       1  : 1,     %% Datalink destination address
+       0  : 1,     %% Datalink source address
+       1  : 1,     %% Datalink VLAN
+       0  : 1 >>.  %% In port
+
+flow_match_wildcards_rec() ->
+    #of_v10_flow_match_wildcards{in_port     = false,
+                                 dl_vlan     = true,
+                                 dl_src      = false,
+                                 dl_dst      = true,
+                                 dl_type     = false,
+                                 nw_proto    = true,
+                                 tp_src      = false,
+                                 tp_dst      = true,
+                                 nw_src_bits = 22,
+                                 nw_dst_bits = 11,
+                                 dl_vlan_pcp = false,
+                                 nw_tos      = true}.
+
+flow_match_bin() ->
+    WildcardsBin = flow_match_wildcards_bin(),
+    HwAddrBin = hw_addr_bin(),
+    << WildcardsBin/binary,
+       12345 : 16,         %% In port
+       HwAddrBin/binary,   %% Datalink source address
+       HwAddrBin/binary,   %% Datalink destination address
+       111   : 16,         %% Datalink VLAN
+       22    : 8,          %% Datalink VLAN PCP
+       0     : 8,          %% Padding
+       333   : 16,         %% Datalink type
+       44    : 8,          %% Network TOS
+       55    : 8,          %% Network protocol
+       0     : 16,         %% Padding
+       6666  : 32,         %% Network source address,
+       7777  : 32,         %% Network destination address,
+       88    : 16,         %% Transport source port
+       99    : 16 >>.      %% Transport destination port
+       
+flow_match_rec() ->
+    #of_v10_flow_match{wildcards   = flow_match_wildcards_rec(),
+                       in_port     = 12345,
+                       dl_src      = hw_addr_bin(),
+                       dl_dst      = hw_addr_bin(),
+                       dl_vlan     = 111,
+                       dl_vlan_pcp = 22,
+                       dl_type     = 333,
+                       nw_tos      = 44,
+                       nw_proto    = 55,
+                       nw_src      = 6666,
+                       nw_dst      = 7777,
+                       tp_src      = 88,
+                       tp_dst      = 99}.

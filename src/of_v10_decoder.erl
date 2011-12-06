@@ -20,7 +20,8 @@
          decode_get_config_reply/1,
          decode_set_config/1,
          decode_packet_in/1,
-         decode_flow_removed/1]).
+         decode_flow_removed/1,
+         decode_port_status/1]).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -138,6 +139,13 @@ decode_flow_removed(?OF_V10_FLOW_REMOVED_PATTERN) ->
       packet_count  = PacketCount,
       byte_count    = ByteCount
      }.
+
+-spec decode_port_status(binary()) -> #of_v10_port_status{}.
+decode_port_status(?OF_V10_PORT_STATUS_PATTERN) ->
+    DescRec = decode_phy_port(Desc),
+    _PortStatus = #of_v10_port_status{
+      reason = Reason,
+      desc   = DescRec}.
 
 %%
 %% Internal functions.
@@ -433,4 +441,16 @@ decode_packet_in_test() ->
     Bin = of_v10_test_msgs:packet_in_bin(),
     ActualRec = decode_packet_in(Bin),
     ExpectedRec = of_v10_test_msgs:packet_in_rec(),
+    ?assertEqual(ActualRec, ExpectedRec).
+
+decode_flow_removed_test() ->
+    Bin = of_v10_test_msgs:flow_removed_bin(),
+    ActualRec = decode_flow_removed(Bin),
+    ExpectedRec = of_v10_test_msgs:flow_removed_rec(),
+    ?assertEqual(ActualRec, ExpectedRec).
+
+decode_port_status_test() ->
+    Bin = of_v10_test_msgs:port_status_bin(),
+    ActualRec = decode_port_status(Bin),
+    ExpectedRec = of_v10_test_msgs:port_status_rec(),
     ?assertEqual(ActualRec, ExpectedRec).

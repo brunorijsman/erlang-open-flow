@@ -301,8 +301,8 @@
 
 -define(OF_V10_FLOW_MATCH_PATTERN,
         << Wildcards    : 4/binary,
-           InPort       : 32,
-           DlSrc         : ?OF_V10_ETH_ALEN/binary-unit:8,
+           InPort       : 16,
+           DlSrc        : ?OF_V10_ETH_ALEN/binary-unit:8,
            DlDst        : ?OF_V10_ETH_ALEN/binary-unit:8,
            DlVlan       : 16,
            DlVlanPcp    : 8,
@@ -317,7 +317,7 @@
            TpDst        : 16 >>).
 
 -define(OF_V10_FLOW_REMOVED_PATTERN,
-        << Match        : 10/binary,
+        << Match        : 40/binary,
            Cookie       : 64,
            Priority     : 16,
            Reason       : 8,
@@ -332,7 +332,7 @@
 -define(OF_V10_PORT_STATUS_PATTERN,
         << Reason : 8,
            _Pad   : 56,
-           Desc   : 6/binary >>.
+           Desc   : 48/binary >>.
 
 -type of_v10_version() :: ?OF_V10_VERSION.
 
