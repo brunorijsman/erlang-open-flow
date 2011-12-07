@@ -22,7 +22,13 @@
          decode_port_status/1,
          decode_packet_out/1,
          decode_flow_mod/1,
-         decode_port_mod/1]).
+         decode_port_mod/1,
+         decode_stats_request/1,
+         decode_stats_reply/1,
+         decode_barrier_request/1,
+         decode_barrier_reply/1,
+         decode_queue_get_config_request/1,
+         decode_queue_get_config_reply/1]).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -184,6 +190,38 @@ decode_port_mod(?OF_V10_PORT_MOD_PATTERN) ->
       config    = decode_phy_port_config(Config),
       mask      = decode_phy_port_config(Mask),
       advertise = decode_phy_port_features(Advertise)
+     }.
+
+-spec decode_stats_request(binary()) -> #of_v10_stats_request{}.
+decode_stats_request(?OF_V10_STATS_REQUEST_PATTERN) ->
+    _StatsRequest = #of_v10_stats_request{
+      body = decode_stats_request_body(Type, Body)
+     }.
+
+-spec decode_stats_reply(binary()) -> #of_v10_stats_reply{}.
+decode_stats_reply(?OF_V10_STATS_REPLY_PATTERN) ->
+    _StatsReply = #of_v10_stats_reply{
+      more = More,
+      body = decode_stats_reply_body(Type, Body)
+     }.
+
+-spec decode_barrier_request(binary()) -> #of_v10_barrier_request{}.
+decode_barrier_request(?OF_V10_BARRIER_REQUEST_PATTERN) ->
+    _BarrierRequest = #of_v10_barrier_request{}.
+
+-spec decode_barrier_reply(binary()) -> #of_v10_barrier_reply{}.
+decode_barrier_reply(?OF_V10_BARRIER_REPLY_PATTERN) ->
+    _BarrierReply = #of_v10_barrier_reply{}.
+
+-spec decode_queue_get_config_request(binary()) -> #of_v10_queue_get_config_request{}.
+decode_queue_get_config_request(?OF_V10_QUEUE_GET_CONFIG_REQUEST_PATTERN) ->
+    _QueueGetConfigRequest = #of_v10_queue_get_config_request{port = Port}.
+
+-spec decode_queue_get_config_reply(binary()) -> #of_v10_queue_get_config_reply{}.
+decode_queue_get_config_reply(?OF_V10_QUEUE_GET_CONFIG_REPLY_PATTERN) ->
+    _QueueGetConfigReply = #of_v10_queue_get_config_reply{
+      port = Port,
+      queues = decode_queues(Queues)
      }.
 
 %%
@@ -378,6 +416,118 @@ decode_action(?OF_V10_ACTION_TYPE_ENQUEUE, ?OF_V10_ACTION_ENQUEUE_PATTERN) ->
     #of_v10_action_enqueue{port = Port, queue_id = QueueId};
 decode_action(?OF_V10_ACTION_TYPE_VENDOR, ?OF_V10_ACTION_VENDOR_PATTERN) ->
     #of_v10_action_vendor{vendor = Vendor}.
+
+-spec decode_stats_request_body(uint8(), binary()) -> of_v10_stats_request_body().
+decode_stats_request_body(?OF_V10_STATS_TYPE_DESC, ?OF_V10_DESC_STATS_REQUEST_PATTERN) ->
+    #of_v10_desc_stats_request{};
+decode_stats_request_body(?OF_V10_STATS_TYPE_FLOW, ?OF_V10_FLOW_STATS_REQUEST_PATTERN) ->
+    #of_v10_flow_stats_request{match = decode_flow_match(Match), table_id = TableId, out_port = OutPort};
+decode_stats_request_body(?OF_V10_STATS_TYPE_AGGREGATE, ?OF_V10_AGGREGATE_STATS_REQUEST_PATTERN) ->
+    #of_v10_aggregate_stats_request{match = decode_flow_match(Match), table_id = TableId, out_port = OutPort};
+decode_stats_request_body(?OF_V10_STATS_TYPE_TABLE, ?OF_V10_TABLE_STATS_REQUEST_PATTERN) ->
+    #of_v10_table_stats_request{};
+decode_stats_request_body(?OF_V10_STATS_TYPE_PORT, ?OF_V10_PORT_STATS_REQUEST_PATTERN) ->
+    #of_v10_port_stats_request{port_no = PortNo};
+decode_stats_request_body(?OF_V10_STATS_TYPE_QUEUE, ?OF_V10_QUEUE_STATS_REQUEST_PATTERN) ->
+    #of_v10_queue_stats_request{port_no = PortNo, queue_id = QueueId};
+decode_stats_request_body(?OF_V10_STATS_TYPE_VENDOR, ?OF_V10_VENDOR_STATS_REQUEST_PATTERN) ->
+    #of_v10_vendor_stats_request{vendor_id = VendorId, body = Body}.
+
+
+-spec decode_stats_reply_body(uint8(), binary()) -> of_v10_stats_reply_body().
+decode_stats_reply_body(?OF_V10_STATS_TYPE_DESC, ?OF_V10_DESC_STATS_REPLY_PATTERN) ->
+    #of_v10_desc_stats_reply{mfr_desc   = decode_string(MfrDesc),
+                             hw_desc    = decode_string(HwDesc),
+                             sw_desc    = decode_string(SwDesc),
+                             serial_num = decode_string(SerialNum),
+                             dp_desc    = decode_string(DpDesc)};
+decode_stats_reply_body(?OF_V10_STATS_TYPE_FLOW, ?OF_V10_FLOW_STATS_REPLY_PATTERN) ->
+    #of_v10_flow_stats_reply{table_id      = TableId,
+                             match         = decode_flow_match(Match),
+                             duration_sec  = DurationSec,
+                             duration_nsec = DurationNsec,
+                             priority      = Priority,
+                             idle_timeout  = IdleTimeout,
+                             hard_timeout  = HardTimeout,
+                             cookie        = Cookie,
+                             packet_count  = PacketCount,
+                             byte_count    = ByteCount,
+                             actions       = decode_actions(Actions)};
+decode_stats_reply_body(?OF_V10_STATS_TYPE_AGGREGATE, ?OF_V10_AGGREGATE_STATS_REPLY_PATTERN) ->
+    #of_v10_aggregate_stats_reply{packet_count = PacketCount,
+                                  byte_count   = ByteCount,
+                                  flow_count   = FlowCount};
+decode_stats_reply_body(?OF_V10_STATS_TYPE_TABLE, ?OF_V10_TABLE_STATS_REPLY_PATTERN) ->
+    #of_v10_table_stats_reply{table_id      = TableId,
+                              name          = decode_string(Name),
+                              wildcards     = decode_flow_match_wildcards(Wildcards),
+                              max_entries   = MaxEntries,
+                              active_count  = ActiveCount,
+                              lookup_count  = LookupCount,
+                              matched_count = MatchedCount};
+decode_stats_reply_body(?OF_V10_STATS_TYPE_PORT, ?OF_V10_PORT_STATS_REPLY_PATTERN) ->
+    #of_v10_port_stats_reply{port_no      = PortNo,
+                             rx_packets   = RxPackets,
+                             tx_packets   = TxPackets,
+                             rx_bytes     = RxBytes,
+                             tx_bytes     = TxBytes,
+                             rx_dropped   = RxDropped,
+                             tx_dropped   = TxDropped,
+                             rx_errors    = RxErrors,
+                             tx_errors    = TxErrors,
+                             rx_frame_err = RxFrameErr,
+                             tx_over_err  = TxOverErr,
+                             rx_crc_err   = RxCrcErr,
+                             collisions   = Collisions};
+decode_stats_reply_body(?OF_V10_STATS_TYPE_QUEUE, ?OF_V10_QUEUE_STATS_REPLY_PATTERN) ->
+    #of_v10_queue_stats_reply{port_no    = PortNo,
+                              queue_id   = QueueId,
+                              tx_bytes   = TxBytes,
+                              tx_packets = TxPackets,
+                              tx_errors  = TxErrors};
+decode_stats_reply_body(?OF_V10_STATS_TYPE_VENDOR, ?OF_V10_VENDOR_STATS_REPLY_PATTERN) ->
+    #of_v10_vendor_stats_reply{vendor_id = VendorId, 
+                               body      = Body}.
+
+%% TODO: make naming conventions consistent with decode_actions
+-spec decode_queues(binary()) -> [#of_v10_queue{}].
+decode_queues(QueuesBin) ->
+    decode_queues(QueuesBin, []).
+    
+%% TODO: validate Len >= 8
+-spec decode_queues(binary(), [#of_v10_queue{}]) -> [#of_v10_queue{}].
+decode_queues(<<>>, QueueRecs) ->
+    lists:reverse(QueueRecs);
+decode_queues(?OF_V10_QUEUES_PATTERN, QueueRecs) ->
+    PropertiesLen = Len - 8,
+    << Properties : PropertiesLen/binary, NewRest/binary >> = Rest,
+    PropertyRecs = decode_queue_properties(Properties),
+    QueueRec = #of_v10_queue{queue_id = QueueId, properties = PropertyRecs},
+    decode_queues(NewRest, [QueueRec | QueueRecs]).
+
+-spec decode_queue_properties(binary()) -> [of_v10_queue_property()].
+decode_queue_properties(PropertiesBin) ->
+    decode_queue_properties(PropertiesBin, []).
+
+-spec decode_queue_properties(binary(), [of_v10_queue_property()]) -> [of_v10_queue_property()].
+decode_queue_properties(<<>>, PropertyRecs) ->
+    lists:reverse(PropertyRecs);
+decode_queue_properties(?OF_V10_QUEUE_PROPERTIES_PATTERN, PropertyRecs) ->
+    PropertyLen = Len - 8,
+    << PropertyBin : PropertyLen/binary, NewRest/binary >> = Rest,
+    PropertyRec = decode_queue_property(Type, PropertyBin),
+    case PropertyRec of
+        none ->
+            decode_queue_properties(NewRest, PropertyRecs);
+        _ ->
+            decode_queue_properties(NewRest, [PropertyRec | PropertyRecs])
+    end.
+
+-spec decode_queue_property(of_v10_queue_property_type(), binary()) -> of_v10_queue_property() | none.
+decode_queue_property(?OF_V10_QUEUE_PROPERTY_TYPE_NONE, ?OF_V10_QUEUE_PROPERTY_NONE_PATTERN) ->
+    none;
+decode_queue_property(?OF_V10_QUEUE_PROPERTY_TYPE_MIN_RATE, ?OF_V10_QUEUE_PROPERTY_MIN_RATE_PATTERN) ->
+    #of_v10_queue_property_min_rate{rate = Rate}.
 
 %%
 %% Unit tests.

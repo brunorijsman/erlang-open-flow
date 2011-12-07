@@ -90,9 +90,6 @@
 -define(OF_V10_PORT_NO_LOCAL,      16#fffe).
 -define(OF_V10_PORT_NO_NONE,       16#ffff).
 
--define(OF_V10_QUEUE_PROPERTY_TYPE_NONE,     0).
--define(OF_V10_QUEUE_PROPERTY_TYPE_MIN_RATE, 1).
-
 -define(OF_V10_STP_PORT_STATE_MIN,     0).
 -define(OF_V10_STP_PORT_STATE_MAX,     3).
 -define(OF_V10_STP_PORT_STATE_LISTEN,  0).
@@ -158,10 +155,10 @@
 -define(OF_V10_STATS_TYPE_QUEUE,     5).
 -define(OF_V10_STATS_TYPE_VENDOR,    6).
 
--define(OF_V10_QUEUE_PROP_TYPE_MIN,      0).
--define(OF_V10_QUEUE_PROP_TYPE_MAX,      1).
--define(OF_V10_QUEUE_PROP_TYPE_NONE,     0).
--define(OF_V10_QUEUE_PROP_TYPE_MIN_RATE, 1).
+-define(OF_V10_QUEUE_PROPERTY_TYPE_MIN,      0).
+-define(OF_V10_QUEUE_PROPERTY_TYPE_MAX,      1).
+-define(OF_V10_QUEUE_PROPERTY_TYPE_NONE,     0).
+-define(OF_V10_QUEUE_PROPERTY_TYPE_MIN_RATE, 1).
 
 -define(OF_V10_ETH_ALEN, 6).
 
@@ -224,21 +221,6 @@
            AdvertisedFeatures : 4/binary,
            SupportedFeatures  : 4/binary,
            PeerFeatures       : 4/binary >>.
-
--define(OF_V10_QUEUE_PATTERN,
-        << QueueId : 32,
-           Length  : 16,
-           _Pad    : 16,
-           QueueProperties/binary >>).
-
--define(OF_V10_QUEUE_PROPERTY_HEADER_PATTERN,
-        << Type   : 16,
-           Length : 16,
-           _Pad   : 32 >>).
-
--define(OF_V10_QUEUE_PROPERTY_MIN_RATE_PATTERN,
-        << RateInTenthPercent : 16,
-           _Pad               : 48 >>).
 
 -define(OF_V10_CAPABILITIES_PATTERN, 
         << _Reserved1 : 24,
@@ -476,24 +458,21 @@
         << VendorId : 32,
            Body/binary >>.
 
--define(OF_V10_STATS_REPLY_FLAGS_PATTERN,
-        << _Reserved  : 15,
-           More       : 1 >>.
-
 -define(OF_V10_STATS_REPLY_PATTERN,
-        << Type   : 16,
-           Flags  : 4/binary,
+        << Type      : 16,
+           _Reserved : 15,
+           More      : 1,
            Body/binary >>.
 
 -define(OF_V10_DESC_STATS_REPLY_PATTERN,
-        << MfrDesc/?DESC_STR_LEN:binary-unit:8,
-           HwDesc/?DESC_STR_LEN:binary-unit:8,
-           SwDesc/?DESC_STR_LEN:binary-unit:8,
-           SerialNum/?SERIAL_NUM_LEN:binary-unit:8,
-           DpDesc/?DESC_STR_LEN:binary-unit:8 >>.
+        << MfrDesc   : ?OF_V10_DESC_STR_LEN/binary-unit:8,
+           HwDesc    : ?OF_V10_DESC_STR_LEN/binary-unit:8,
+           SwDesc    : ?OF_V10_DESC_STR_LEN/binary-unit:8,
+           SerialNum : ?OF_V10_SERIAL_NUM_LEN/binary-unit:8,
+           DpDesc    : ?OF_V10_DESC_STR_LEN/binary-unit:8 >>.
 
 -define(OF_V10_FLOW_STATS_REPLY_PATTERN,
-        << Length       : 16,
+        << _Length      : 16,     %% TODO: Why is this here? Am I missing something?
            TableId      : 8,
            _Pad1        : 8,
            Match        : 40/binary,
@@ -517,7 +496,7 @@
 -define(OF_V10_TABLE_STATS_REPLY_PATTERN,
         << TableId      : 8,
            _Pad         : 24,
-           Name         : OF_V10_MAX_TABLE_NAME_LEN/binary-units:8
+           Name         : ?OF_V10_MAX_TABLE_NAME_LEN/binary-unit:8,
            Wildcards    : 4/binary,
            MaxEntries   : 32,
            ActiveCount  : 32,
@@ -565,20 +544,27 @@
            Len  : 16,
            Body/binary >>.
 
--define(OF_V10_QUEUE_PROP_MIN_RATE,
-        << Rate : 16,
-           _Pad : 47 >>.
-
--define(OF_V10_PACKET_QUEUE_PATTERN,
-        << QueueId : 32,
-           Len     : 16,
-           _Pad    : 16,
-           Properties/binary >>.
-
 -define(OF_V10_QUEUE_GET_CONFIG_REPLY_PATTERN,
         << Port : 16,
            _Pad : 16,
            Queues/binary >>.
+
+-define(OF_V10_QUEUES_PATTERN,
+        << QueueId    : 32,
+           Len        : 16,
+           _Pad       : 16,
+           Rest/binary >>.
+
+-define(OF_V10_QUEUE_PROPERTIES_PATTERN,
+        << Type : 16,
+           Len  : 16,
+           Rest/binary >>.
+
+-define(OF_V10_QUEUE_PROPERTY_NONE_PATTERN, << >>).
+
+-define(OF_V10_QUEUE_PROPERTY_MIN_RATE_PATTERN,
+        << Rate : 16,
+           _Pad : 47 >>.
 
 -type of_v10_version() :: ?OF_V10_VERSION.
 
@@ -606,7 +592,7 @@
 
 -type of_v10_stats_type() :: ?OF_V10_STATS_TYPE_MIN..?OF_V10_STATS_TYPE_MAX.
 
--type of_v10_queue_prop_type() :: ?OF_V10_QUEUE_PROP_TYPE_MIN..?OF_V10_QUEUE_PROP_TYPE_MAX.
+-type of_v10_queue_property_type() :: ?OF_V10_QUEUE_PROPERTY_TYPE_MIN..?OF_V10_QUEUE_PROPERTY_TYPE_MAX.
 
 -record(of_v10_header, {
           version :: of_v10_version(),
@@ -883,13 +869,13 @@
                                      #of_v10_queue_stats_request{} |
                                      #of_v10_vendor_stats_request{}.
 
+%% TODO: need this?
 -record(of_v10_stats_request, {
-          type :: of_v10_stats_type(),
           body :: of_v10_stats_request_body() }).
 
 %% TODO: limit length of string in type
 -record(of_v10_desc_stats_reply, {
-        mf_desc    :: string(),
+        mfr_desc   :: string(),
         hw_desc    :: string(),
         sw_desc    :: string(),
         serial_num :: string(),
@@ -958,7 +944,6 @@
                                    #of_v10_vendor_stats_reply{}.
 
 -record(of_v10_stats_reply, {
-          type :: of_v10_stats_type(),
           more :: boolean(),
           body :: of_v10_stats_reply_body() }).
 
@@ -969,18 +954,18 @@
 -record(of_v10_queue_get_config_request, {
           port :: uint16() }).
 
--record(of_v10_queue_properties_min_rate, {
+-record(of_v10_queue_property_min_rate, {
           rate :: uint16() }).
 
--type of_v10_queue_properties() :: #of_v10_queue_properties_min_rate{}.
+-type of_v10_queue_property() :: #of_v10_queue_property_min_rate{}.
 
--record(of_v10_packet_queue, {
+-record(of_v10_queue, {
           queue_id   :: uint32(),
-          properties :: [of_v10_queue_properties()] }).
+          properties :: [of_v10_queue_property()] }).
 
 -record(of_v10_queue_get_config_reply, {
           port   :: uint16(),
-          queues :: [#of_v10_packet_queue{}] }).
+          queues :: [#of_v10_queue{}] }).
 
 -type of_v10_message() :: #of_v10_hello{} |
                           #of_v10_error{} |
