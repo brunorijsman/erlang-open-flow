@@ -148,11 +148,34 @@
 -define(OF_V10_FLOW_MOD_COMMAND_DELETE,        3).
 -define(OF_V10_FLOW_MOD_COMMAND_DELETE_STRICT, 4).
 
+-define(OF_V10_STATS_TYPE_MIN,       0).
+-define(OF_V10_STATS_TYPE_MAX,       6).
+-define(OF_V10_STATS_TYPE_DESC,      0).
+-define(OF_V10_STATS_TYPE_FLOW,      1).
+-define(OF_V10_STATS_TYPE_AGGREGATE, 2).
+-define(OF_V10_STATS_TYPE_TABLE,     3).
+-define(OF_V10_STATS_TYPE_PORT,      4).
+-define(OF_V10_STATS_TYPE_QUEUE,     5).
+-define(OF_V10_STATS_TYPE_VENDOR,    6).
+
+-define(OF_V10_QUEUE_PROP_TYPE_MIN,      0).
+-define(OF_V10_QUEUE_PROP_TYPE_MAX,      1).
+-define(OF_V10_QUEUE_PROP_TYPE_NONE,     0).
+-define(OF_V10_QUEUE_PROP_TYPE_MIN_RATE, 1).
+
 -define(OF_V10_ETH_ALEN, 6).
+
+-define(OF_V10_MAX_TABLE_NAME_LEN, 32).
 
 -define(OF_V10_MAX_PORT_NAME_LEN, 16).
 
+-define(OF_V10_DESC_STR_LEN, 256).
+
+-define(OF_V10_SERIAL_NUM_LEN, 32).
+
 -define(OF_V10_HEADER_LEN, 8).
+
+-define(OF_V10_QUEUE_ID_ALL, 0xffffffff).   %% TODO: Spec not clear on this
 
 -define(OF_V10_HEADER_PATTERN,
         << Version : 8,
@@ -312,7 +335,7 @@
            InPort    : 1 >>).
 
 -define(OF_V10_FLOW_MATCH_PATTERN,
-        << Wildcards    : 4/binary,
+        << Wildcards    : 4/binary,   %% TODO: define for magic number 4 
            InPort       : 16,
            DlSrc        : ?OF_V10_ETH_ALEN/binary-unit:8,
            DlDst        : ?OF_V10_ETH_ALEN/binary-unit:8,
@@ -402,7 +425,7 @@
            Command      : 16,
            IdleTimeout  : 16,
            HardTimeout  : 16,
-             Priority     : 16,
+           Priority     : 16,
            BufferId     : 32, 
            OutPort      : 16,
            _Reserved    : 13,
@@ -418,6 +441,144 @@
            Mask      : 4/binary,
            Advertise : 4/binary,
            _Pad      : 32 >>.
+
+-define(OF_V10_STATS_REQUEST_PATTERN,
+        << Type   : 16,
+           _Flags : 16, 
+           Body/binary >>.
+
+-define(OF_V10_DESC_STATS_REQUEST_PATTERN, << >>).
+
+-define(OF_V10_FLOW_STATS_REQUEST_PATTERN,
+        << Match   : 40/binary,
+           TableId : 8,
+           _Pad    : 8,
+           OutPort : 16 >>.
+
+-define(OF_V10_AGGREGATE_STATS_REQUEST_PATTERN,
+        << Match   : 40/binary,
+           TableId : 8,
+           _Pad    : 8,
+           OutPort : 16 >>.
+
+-define(OF_V10_TABLE_STATS_REQUEST_PATTERN, << >>).
+
+-define(OF_V10_PORT_STATS_REQUEST_PATTERN,
+        << PortNo : 16,
+           _Pad   : 48 >>.
+
+-define(OF_V10_QUEUE_STATS_REQUEST_PATTERN,
+        << PortNo  : 16,
+           _Pad    : 16,
+           QueueId : 32 >>.
+
+-define(OF_V10_VENDOR_STATS_REQUEST_PATTERN,
+        << VendorId : 32,
+           Body/binary >>.
+
+-define(OF_V10_STATS_REPLY_FLAGS_PATTERN,
+        << _Reserved  : 15,
+           More       : 1 >>.
+
+-define(OF_V10_STATS_REPLY_PATTERN,
+        << Type   : 16,
+           Flags  : 4/binary,
+           Body/binary >>.
+
+-define(OF_V10_DESC_STATS_REPLY_PATTERN,
+        << MfrDesc/?DESC_STR_LEN:binary-unit:8,
+           HwDesc/?DESC_STR_LEN:binary-unit:8,
+           SwDesc/?DESC_STR_LEN:binary-unit:8,
+           SerialNum/?SERIAL_NUM_LEN:binary-unit:8,
+           DpDesc/?DESC_STR_LEN:binary-unit:8 >>.
+
+-define(OF_V10_FLOW_STATS_REPLY_PATTERN,
+        << Length       : 16,
+           TableId      : 8,
+           _Pad1        : 8,
+           Match        : 40/binary,
+           DurationSec  : 32,
+           DurationNsec : 32,
+           Priority     : 16,
+           IdleTimeout  : 16,
+           HardTimeout  : 16,
+           _Pad2        : 48,
+           Cookie       : 64,
+           PacketCount  : 64,
+           ByteCount    : 64,
+           Actions/binary >>.           
+
+-define(OF_V10_AGGREGATE_STATS_REPLY_PATTERN,
+        << PacketCount : 64,
+           ByteCount   : 64,
+           FlowCount   : 32,
+           _Pad        : 32 >>.
+
+-define(OF_V10_TABLE_STATS_REPLY_PATTERN,
+        << TableId      : 8,
+           _Pad         : 24,
+           Name         : OF_V10_MAX_TABLE_NAME_LEN/binary-units:8
+           Wildcards    : 4/binary,
+           MaxEntries   : 32,
+           ActiveCount  : 32,
+           LookupCount  : 64,
+           MatchedCount : 64 >>.
+
+-define(OF_V10_PORT_STATS_REPLY_PATTERN,
+        << PortNo     : 16,
+           _Pad       : 48,
+           RxPackets  : 64,
+           TxPackets  : 64,
+           RxBytes    : 64,
+           TxBytes    : 64,
+           RxDropped  : 64,
+           TxDropped  : 64,
+           RxErrors   : 64,
+           TxErrors   : 64,
+           RxFrameErr : 64,
+           TxOverErr  : 64,
+           RxCrcErr   : 64,
+           Collisions : 64 >>.
+
+-define(OF_V10_QUEUE_STATS_REPLY_PATTERN,
+        << PortNo    : 16,
+           _Pad      : 16,
+           QueueId   : 32,
+           TxBytes   : 64,
+           TxPackets : 64,
+           TxErrors  : 64 >>.
+
+-define(OF_V10_VENDOR_STATS_REPLY_PATTERN,
+        << VendorId : 32,
+           Body/binary >>.
+
+-define(OF_V10_BARRIER_REQUEST_PATTERN, << >>).
+
+-define(OF_V10_BARRIER_REPLY_PATTERN, << >>).
+
+-define(OF_V10_QUEUE_GET_CONFIG_REQUEST_PATTERN,
+        << Port : 16,
+           _Pad : 16 >>.
+
+-define(OF_V10_QUEUE_PROPERTIES,
+        << Type : 16,
+           Len  : 16,
+           Body/binary >>.
+
+-define(OF_V10_QUEUE_PROP_MIN_RATE,
+        << Rate : 16,
+           _Pad : 47 >>.
+
+-define(OF_V10_PACKET_QUEUE_PATTERN,
+        << QueueId : 32,
+           Len     : 16,
+           _Pad    : 16,
+           Properties/binary >>.
+
+-define(OF_V10_QUEUE_GET_CONFIG_REPLY_PATTERN,
+        << Port : 16,
+           _Pad : 16,
+           Queues/binary >>.
 
 -type of_v10_version() :: ?OF_V10_VERSION.
 
@@ -442,6 +603,10 @@
 -type of_v10_action_type() :: ?OF_V10_ACTION_TYPE_MIN..?OF_V10_ACTION_TYPE_MAX.
 
 -type of_v10_flow_mod_command() :: ?OF_V10_FLOW_MOD_COMMAND_MIN..?OF_V10_FLOW_MOD_COMMAND_MAX.
+
+-type of_v10_stats_type() :: ?OF_V10_STATS_TYPE_MIN..?OF_V10_STATS_TYPE_MAX.
+
+-type of_v10_queue_prop_type() :: ?OF_V10_QUEUE_PROP_TYPE_MIN..?OF_V10_QUEUE_PROP_TYPE_MAX.
 
 -record(of_v10_header, {
           version :: of_v10_version(),
@@ -677,16 +842,145 @@
           send_flow_rem :: boolean(),
           check_overlap :: boolean(), 
           emerg         :: boolean(),
-          actions       :: [of_v10_action()]
-         }).
+          actions       :: [of_v10_action()] }).
 
 -record(of_v10_port_mod, {
           port_no   :: uint16(),
           hw_addr   :: of_hw_addr(),
           config    :: #of_v10_phy_port_config{},
           mask      :: #of_v10_phy_port_config{},
-          advertise :: #of_v10_phy_port_features{}
-         }).
+          advertise :: #of_v10_phy_port_features{} }).
+
+-record(of_v10_desc_stats_request, {}).
+
+-record(of_v10_flow_stats_request, {
+          match    :: #of_v10_flow_match{},
+          table_id :: uint8(),
+          out_port :: uint16() }).
+
+-record(of_v10_aggregate_stats_request, {
+          match    :: #of_v10_flow_match{},
+          table_id :: uint8(),
+          out_port :: uint16() }).
+
+-record(of_v10_table_stats_request, {}).
+
+-record(of_v10_port_stats_request, {
+          port_no :: uint16() }).
+
+-record(of_v10_queue_stats_request, {
+          port_no  :: uint16(),
+          queue_id :: uint32() }).
+
+-record(of_v10_vendor_stats_request, {
+          vendor_id  :: uint32(),
+          body       :: binary() }).
+
+-type of_v10_stats_request_body() :: #of_v10_flow_stats_request{} |
+                                     #of_v10_aggregate_stats_request{} |
+                                     #of_v10_table_stats_request{} |
+                                     #of_v10_port_stats_request{} |
+                                     #of_v10_queue_stats_request{} |
+                                     #of_v10_vendor_stats_request{}.
+
+-record(of_v10_stats_request, {
+          type :: of_v10_stats_type(),
+          body :: of_v10_stats_request_body() }).
+
+%% TODO: limit length of string in type
+-record(of_v10_desc_stats_reply, {
+        mf_desc    :: string(),
+        hw_desc    :: string(),
+        sw_desc    :: string(),
+        serial_num :: string(),
+        dp_desc    :: string() }).
+
+-record(of_v10_flow_stats_reply, {
+        table_id      :: uint8(),
+        match         :: #of_v10_flow_match{},
+        duration_sec  :: uint32(),
+        duration_nsec :: uint32(),
+        priority      :: uint16(),
+        idle_timeout  :: uint16(),
+        hard_timeout  :: uint16(),
+        cookie        :: uint64(),
+        packet_count  :: uint64(),
+        byte_count    :: uint64(),
+        actions       :: [of_v10_action()] }).
+
+-record(of_v10_aggregate_stats_reply, {
+        packet_count :: uint64(),
+        byte_count   :: uint64(),
+        flow_count   :: uint32() }).
+
+%% TODO: limit length of string
+-record(of_v10_table_stats_reply, {
+        table_id      :: uint8(),
+        name          :: string(),
+        wildcards     :: #of_v10_flow_match_wildcards{},
+        max_entries   :: uint32(),
+        active_count  :: uint32(),
+        lookup_count  :: uint64(),
+        matched_count :: uint64() }).
+
+-record(of_v10_port_stats_reply, {
+        port_no      :: uint16(),
+        rx_packets   :: uint64(),
+        tx_packets   :: uint64(),
+        rx_bytes     :: uint64(),
+        tx_bytes     :: uint64(),
+        rx_dropped   :: uint64(),
+        tx_dropped   :: uint64(),
+        rx_errors    :: uint64(),
+        tx_errors    :: uint64(),
+        rx_frame_err :: uint64(),
+        tx_over_err  :: uint64(),
+        rx_crc_err   :: uint64(),
+        collisions   :: uint64() }).
+
+%% TODO: separate types for port_no and queue_id
+-record(of_v10_queue_stats_reply, {
+        port_no :: uint16(),
+        queue_id :: uint32(),
+        tx_bytes :: uint64(),
+        tx_packets :: uint64(),
+        tx_errors :: uint64() }).
+
+-record(of_v10_vendor_stats_reply, {
+        vendor_id :: uint32(),
+        body      :: binary() }).
+
+-type of_v10_stats_reply_body() :: #of_v10_flow_stats_reply{} |
+                                   #of_v10_aggregate_stats_reply{} |
+                                   #of_v10_table_stats_reply{} |
+                                   #of_v10_port_stats_reply{} |
+                                   #of_v10_queue_stats_reply{} |
+                                   #of_v10_vendor_stats_reply{}.
+
+-record(of_v10_stats_reply, {
+          type :: of_v10_stats_type(),
+          more :: boolean(),
+          body :: of_v10_stats_reply_body() }).
+
+-record(of_v10_barrier_request, {}).
+
+-record(of_v10_barrier_reply, {}).
+
+-record(of_v10_queue_get_config_request, {
+          port :: uint16() }).
+
+-record(of_v10_queue_properties_min_rate, {
+          rate :: uint16() }).
+
+-type of_v10_queue_properties() :: #of_v10_queue_properties_min_rate{}.
+
+-record(of_v10_packet_queue, {
+          queue_id   :: uint32(),
+          properties :: [of_v10_queue_properties()] }).
+
+-record(of_v10_queue_get_config_reply, {
+          port   :: uint16(),
+          queues :: [#of_v10_packet_queue{}] }).
 
 -type of_v10_message() :: #of_v10_hello{} |
                           #of_v10_error{} |
@@ -703,6 +997,12 @@
                           #of_v10_port_status{} |
                           #of_v10_packet_out{} |
                           #of_v10_flow_mod{} |
-                          #of_v10_port_mod{}.
+                          #of_v10_port_mod{} |
+                          #of_v10_stats_request{} |
+                          #of_v10_stats_reply{} |
+                          #of_v10_barrier_request{} |
+                          #of_v10_barrier_reply{} |
+                          #of_v10_queue_get_config_request{} |
+                          #of_v10_queue_get_config_reply{}.
 
 -endif.
