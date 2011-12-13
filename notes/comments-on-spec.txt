@@ -1,11 +1,14 @@
 VERSION 1.0
 ===========
 
-[Page 37] buffer_id should be set to -1 when the packet is not buffered, but buffer_id is unsigned (uint32_t). Should say "0xffffffff" instead.
+[Page 32] Why does ofp_flow_stats have a Length field? What is "this entry"? The length of the ofp_flow_stats field can be derived from the length in the message header.
 
 [Page 35] The value of OFPQ_ALL is not defined anywhere in the spec.
 
 [Page 35] The specification is not very clean on the layout of the ofp_vendor_stats_request and ofp_vendor_stats_reply messages.
+
+[Page 37] buffer_id should be set to -1 when the packet is not buffered, but buffer_id is unsigned (uint32_t). Should say "0xffffffff" instead.
+
 
 VERSION 1.1
 ===========

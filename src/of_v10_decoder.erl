@@ -201,7 +201,7 @@ decode_stats_request(?OF_V10_STATS_REQUEST_PATTERN) ->
 -spec decode_stats_reply(binary()) -> #of_v10_stats_reply{}.
 decode_stats_reply(?OF_V10_STATS_REPLY_PATTERN) ->
     _StatsReply = #of_v10_stats_reply{
-      more = More,
+      more = (More == 1),
       body = decode_stats_reply_body(Type, Body)
      }.
 
@@ -798,3 +798,87 @@ decode_port_mod_test() ->
     ActualRec = decode_port_mod(Bin),
     ExpectedRec = of_v10_test_msgs:port_mod_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
+
+decode_stats_request_desc_test() ->
+    Bin = of_v10_test_msgs:stats_request_desc_bin(),
+    ActualRec = decode_stats_request(Bin),
+    ExpectedRec = of_v10_test_msgs:stats_request_desc_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_stats_request_flow_test() ->
+    Bin = of_v10_test_msgs:stats_request_flow_bin(),
+    ActualRec = decode_stats_request(Bin),
+    ExpectedRec = of_v10_test_msgs:stats_request_flow_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_stats_request_aggregate_test() ->
+    Bin = of_v10_test_msgs:stats_request_aggregate_bin(),
+    ActualRec = decode_stats_request(Bin),
+    ExpectedRec = of_v10_test_msgs:stats_request_aggregate_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_stats_request_table_test() ->
+    Bin = of_v10_test_msgs:stats_request_table_bin(),
+    ActualRec = decode_stats_request(Bin),
+    ExpectedRec = of_v10_test_msgs:stats_request_table_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_stats_request_port_test() ->
+    Bin = of_v10_test_msgs:stats_request_port_bin(),
+    ActualRec = decode_stats_request(Bin),
+    ExpectedRec = of_v10_test_msgs:stats_request_port_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_stats_request_queue_test() ->
+    Bin = of_v10_test_msgs:stats_request_queue_bin(),
+    ActualRec = decode_stats_request(Bin),
+    ExpectedRec = of_v10_test_msgs:stats_request_queue_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_stats_request_vendor_test() ->
+    Bin = of_v10_test_msgs:stats_request_vendor_bin(),
+    ActualRec = decode_stats_request(Bin),
+    ExpectedRec = of_v10_test_msgs:stats_request_vendor_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_stats_reply_desc_test() ->
+    Bin = of_v10_test_msgs:stats_reply_desc_bin(),
+    ActualRec = decode_stats_reply(Bin),
+    ExpectedRec = of_v10_test_msgs:stats_reply_desc_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_stats_reply_flow_test() ->
+    Bin = of_v10_test_msgs:stats_reply_flow_bin(),
+    ActualRec = decode_stats_reply(Bin),
+    ExpectedRec = of_v10_test_msgs:stats_reply_flow_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_stats_reply_aggregate_test() ->
+    Bin = of_v10_test_msgs:stats_reply_aggregate_bin(),
+    ActualRec = decode_stats_reply(Bin),
+    ExpectedRec = of_v10_test_msgs:stats_reply_aggregate_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_stats_reply_table_test() ->
+    Bin = of_v10_test_msgs:stats_reply_table_bin(),
+    ActualRec = decode_stats_reply(Bin),
+    ExpectedRec = of_v10_test_msgs:stats_reply_table_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_stats_reply_port_test() ->
+    Bin = of_v10_test_msgs:stats_reply_port_bin(),
+    ActualRec = decode_stats_reply(Bin),
+    ExpectedRec = of_v10_test_msgs:stats_reply_port_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+%% decode_stats_reply_queue_test() ->
+%%     Bin = of_v10_test_msgs:stats_reply_queue_bin(),
+%%     ActualRec = decode_stats_reply(Bin),
+%%     ExpectedRec = of_v10_test_msgs:stats_reply_queue_rec(),
+%%     ?assertEqual(ExpectedRec, ActualRec).
+
+%% decode_stats_reply_vendor_test() ->
+%%     Bin = of_v10_test_msgs:stats_reply_vendor_bin(),
+%%     ActualRec = decode_stats_reply(Bin),
+%%     ExpectedRec = of_v10_test_msgs:stats_reply_vendor_rec(),
+%%     ?assertEqual(ExpectedRec, ActualRec).

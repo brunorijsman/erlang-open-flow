@@ -85,7 +85,36 @@
          flow_mod_bin/0,
          flow_mod_rec/0,
          port_mod_bin/0,
-         port_mod_rec/0]).
+         port_mod_rec/0,
+         stats_request_desc_bin/0,
+         stats_request_desc_rec/0,
+         stats_request_flow_bin/0,
+         stats_request_flow_rec/0,
+         stats_request_aggregate_bin/0,
+         stats_request_aggregate_rec/0,
+         stats_request_table_bin/0,
+         stats_request_table_rec/0,
+         stats_request_port_bin/0,
+         stats_request_port_rec/0,
+         stats_request_queue_bin/0,
+         stats_request_queue_rec/0,
+         stats_request_vendor_bin/0,
+         stats_request_vendor_rec/0,
+         stats_reply_desc_bin/0,
+         stats_reply_desc_rec/0,
+         stats_reply_flow_bin/0,
+         stats_reply_flow_rec/0,
+         stats_reply_aggregate_bin/0,
+         stats_reply_aggregate_rec/0,
+         stats_reply_table_bin/0,
+         stats_reply_table_rec/0,
+         stats_reply_port_bin/0,
+         stats_reply_port_rec/0
+         %% stats_reply_queue_bin/0,
+         %% stats_reply_queue_rec/0,
+         %% stats_reply_vendor_bin/0,
+         %% stats_reply_vendor_rec/0,
+]).
  
 -include_lib("../include/of_v10.hrl").
 
@@ -541,6 +570,18 @@ port_mod_rec() ->
 %% Internal functions.
 %%
 
+pad_list_with_zeroes(List, Length) ->
+    if
+        Length > length(List) ->
+            pad_list_with_zeroes(List ++ [0], Length);
+        Length == length(List) ->
+            List
+    end.
+    
+string_bin(String, BinLength) ->
+    PaddedString = pad_list_with_zeroes(String, BinLength),
+    list_to_binary(PaddedString).
+    
 capabilities_bin() ->
     << 0 : 24,                     %% Reserved
        1 : 1,                      %% ARP match IP
@@ -877,6 +918,228 @@ action_vendor_bin() ->
 action_vendor_rec() ->
     #of_v10_action_vendor{vendor = 3333}.
 
+stats_request_desc_bin() ->
+    << ?OF_V10_STATS_TYPE_DESC : 16,      %% Type
+       0                       : 16 >>.   %% Flags
+
+stats_request_desc_rec() ->
+    Body = #of_v10_desc_stats_request{},
+    #of_v10_stats_request{body = Body}.
+
+stats_request_flow_bin() ->
+    Match = flow_match_bin(),
+    << ?OF_V10_STATS_TYPE_FLOW : 16,      %% Type
+       0                       : 16,      %% Flags
+       Match/binary, 
+       1                       : 8,       %% Table ID
+       0                       : 8,       %% Padding
+       22                      : 16 >>.   %% Out port
+
+stats_request_flow_rec() ->
+    Body = #of_v10_flow_stats_request{match    = flow_match_rec(),
+                                      table_id = 1,
+                                      out_port = 22},
+    #of_v10_stats_request{body = Body}.
+
+stats_request_aggregate_bin() ->
+    Match = flow_match_bin(),
+    << ?OF_V10_STATS_TYPE_AGGREGATE : 16,      %% Type
+       0                            : 16,      %% Flags
+       Match/binary, 
+       1                            : 8,       %% Table ID
+       0                            : 8,       %% Padding
+       22                           : 16 >>.   %% Out port
+
+stats_request_aggregate_rec() ->
+    Body = #of_v10_aggregate_stats_request{match    = flow_match_rec(),
+                                           table_id = 1,
+                                           out_port = 22},
+    #of_v10_stats_request{body = Body}.
+
+stats_request_table_bin() ->
+    << ?OF_V10_STATS_TYPE_TABLE : 16,      %% Type
+       0                        : 16 >>.   %% Flags
+
+stats_request_table_rec() ->
+    Body = #of_v10_table_stats_request{},
+    #of_v10_stats_request{body = Body}.
+
+stats_request_port_bin() ->
+    << ?OF_V10_STATS_TYPE_PORT : 16,      %% Type
+       0                       : 16,      %% Flags
+       11                      : 16,      %% Port no
+       0                       : 48 >>.   %% Padding
+       
+stats_request_port_rec() ->
+    Body = #of_v10_port_stats_request{port_no = 11},
+    #of_v10_stats_request{body = Body}.
+
+stats_request_queue_bin() ->
+    << ?OF_V10_STATS_TYPE_QUEUE : 16,      %% Type
+       0                        : 16,      %% Flags
+       11                       : 16,      %% Port no
+       0                        : 16,      %% Padding
+       222                      : 32 >>.   %% Queue ID
+
+stats_request_queue_rec() ->
+    Body = #of_v10_queue_stats_request{port_no  = 11, 
+                                       queue_id = 222},
+    #of_v10_stats_request{body = Body}.
+
+stats_request_vendor_bin() ->
+    Body = << 1, 2, 3, 4, 5 >>,
+    << ?OF_V10_STATS_TYPE_VENDOR : 16,      %% Type
+       0                         : 16,      %% Flags
+       111                       : 32,      %% Vendor ID
+       Body/binary >>.                      %% Body
+
+stats_request_vendor_rec() ->
+    Body = #of_v10_vendor_stats_request{vendor_id = 111,
+                                        body      = << 1, 2, 3, 4, 5 >>},
+    #of_v10_stats_request{body = Body}.
+
+stats_reply_desc_bin() ->
+    MfrDesc   = string_bin("manufacturer", ?OF_V10_DESC_STR_LEN),
+    HwDesc    = string_bin("hardware", ?OF_V10_DESC_STR_LEN),
+    SwDesc    = string_bin("software", ?OF_V10_DESC_STR_LEN),
+    SerialNum = string_bin("serial num", ?OF_V10_SERIAL_NUM_LEN),
+    DpDesc    = string_bin("datapath", ?OF_V10_DESC_STR_LEN),
+    << ?OF_V10_STATS_TYPE_DESC : 16,      %% Type
+       0                       : 15,      %% Reserved
+       0                       : 1,       %% More flag
+       MfrDesc/binary,
+       HwDesc/binary,
+       SwDesc/binary,
+       SerialNum/binary,
+       DpDesc/binary >>.
+         
+stats_reply_desc_rec() ->
+    Body = #of_v10_desc_stats_reply{mfr_desc   = "manufacturer",
+                                    hw_desc    = "hardware",
+                                    sw_desc    = "software",
+                                    serial_num = "serial num",
+                                    dp_desc    = "datapath"},
+    #of_v10_stats_reply{more = false, body = Body}.
+
+stats_reply_flow_bin() ->
+    MatchBin = flow_match_bin(),
+    Action1Bin = action_output_bin(),
+    Action2Bin = action_set_dl_src_bin(),
+    Action3Bin = action_set_nw_src_bin(),
+    ActionsBin = << Action1Bin/binary, Action2Bin/binary, Action3Bin/binary >>,
+    << ?OF_V10_STATS_TYPE_FLOW : 16,      %% Type
+       0                       : 15,      %% Reserved
+       0                       : 1,       %% More flag
+       88                      : 16,      %% Length of this entry
+       1                       : 8,       %% Table ID
+       0                       : 8,       %% Padding
+       MatchBin/binary,
+       2222                    : 32,      %% Duration sec
+       3333                    : 32,      %% Duration nsec
+       44                      : 16,      %% Priority
+       55                      : 16,      %% Idle timeout
+       66                      : 16,      %% Hard timeout
+       0                       : 48,      %% Padding
+       77777777                : 64,      %% Cookie
+       88888888                : 64,      %% Packet count
+       99999999                : 64,      %% Byte count
+       ActionsBin/binary >>.
+         
+stats_reply_flow_rec() ->
+    FlowMatchRec = flow_match_rec(),
+    ActionRec1 = action_output_rec(),
+    ActionRec2 = action_set_dl_src_rec(),
+    ActionRec3 = action_set_nw_src_rec(),
+    ActionRecs = [ActionRec1, ActionRec2, ActionRec3],
+    Body = #of_v10_flow_stats_reply{table_id = 1,
+                                    match         = FlowMatchRec,
+                                    duration_sec  = 2222,
+                                    duration_nsec = 3333,
+                                    priority      = 44,
+                                    idle_timeout  = 55,
+                                    hard_timeout  = 66,
+                                    cookie        = 77777777,
+                                    packet_count  = 88888888,
+                                    byte_count    = 99999999,
+                                    actions       = ActionRecs},
+    #of_v10_stats_reply{more = false, body = Body}.
+
+stats_reply_aggregate_bin() ->
+    << ?OF_V10_STATS_TYPE_AGGREGATE : 16,      %% Type
+       0                            : 15,      %% Reserved
+       0                            : 1,       %% More flag
+       11111111                     : 64,      %% Packet count
+       22222222                     : 64,      %% Byte count
+       3333                         : 32,      %% Padding
+       0                            : 32 >>.   %% Flow count
+
+stats_reply_aggregate_rec() ->
+    Body = #of_v10_aggregate_stats_reply{packet_count = 11111111,
+                                         byte_count   = 22222222,
+                                         flow_count   = 3333},
+    #of_v10_stats_reply{more = false, body = Body}.
+
+stats_reply_table_bin() ->
+    NameBin = string_bin("table", ?OF_V10_MAX_TABLE_NAME_LEN),
+    WildcardsBin = flow_match_wildcards_bin(),
+    << ?OF_V10_STATS_TYPE_TABLE : 16,      %% Type
+       0                        : 15,      %% Reserved
+       0                        : 1,       %% More flag
+       1                        : 8,       %% Table ID
+       0                        : 24,      %% Padding
+       NameBin/binary,
+       WildcardsBin/binary,
+       2222                     : 32,      %% Max entries
+       3333                     : 32,      %% Active count
+       44444444                 : 64,      %% Lookup count
+       55555555                 : 64 >>.   %% Matched count
+
+stats_reply_table_rec() ->
+    Body = #of_v10_table_stats_reply{table_id      = 1,
+                                     name          = "table",
+                                     wildcards     = flow_match_wildcards_rec(),
+                                     max_entries   = 2222,
+                                     active_count  = 3333,
+                                     lookup_count  = 44444444,
+                                     matched_count = 55555555},
+    #of_v10_stats_reply{more = false, body = Body}.
+
+stats_reply_port_bin() ->
+    << ?OF_V10_STATS_TYPE_PORT : 16,      %% Type
+       0                       : 15,      %% Reserved
+       0                       : 1,       %% More flag
+       11                      : 16,      %% Port no
+       0                       : 48,      %% Padding
+       22222222                : 64,      %% RX packets
+       33333333                : 64,      %% TX packets
+       44444444                : 64,      %% RX bytes
+       55555555                : 64,      %% TX bytes
+       66666666                : 64,      %% RX dropped
+       77777777                : 64,      %% TX dropped
+       88888888                : 64,      %% RX errors
+       99999999                : 64,      %% TX errors
+       21111111                : 64,      %% RX frame errors
+       22222222                : 64,      %% TX overrun errors
+       23333333                : 64,      %% RX CRC errors
+       24444444                : 64 >>.   %% Collisions
+
+stats_reply_port_rec() ->
+    Body = #of_v10_port_stats_reply{port_no      = 11,
+                                    rx_packets   = 22222222,
+                                    tx_packets   = 33333333,
+                                    rx_bytes     = 44444444,
+                                    tx_bytes     = 55555555,
+                                    rx_dropped   = 66666666,
+                                    tx_dropped   = 77777777,
+                                    rx_errors    = 88888888,
+                                    tx_errors    = 99999999,
+                                    rx_frame_err = 21111111,
+                                    tx_over_err  = 22222222,
+                                    rx_crc_err   = 23333333,
+                                    collisions   = 24444444},
+    #of_v10_stats_reply{more = false, body = Body}.
+
 %% TODO: negative test cases
 %% TODO: unrecognized action
 %% TODO: wrong action length
+%% TODO: split public and internal functions

@@ -862,7 +862,8 @@
           vendor_id  :: uint32(),
           body       :: binary() }).
 
--type of_v10_stats_request_body() :: #of_v10_flow_stats_request{} |
+-type of_v10_stats_request_body() :: #of_v10_desc_stats_request{} |
+                                     #of_v10_flow_stats_request{} |
                                      #of_v10_aggregate_stats_request{} |
                                      #of_v10_table_stats_request{} |
                                      #of_v10_port_stats_request{} |
