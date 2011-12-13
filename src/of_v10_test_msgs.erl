@@ -109,12 +109,19 @@
          stats_reply_table_bin/0,
          stats_reply_table_rec/0,
          stats_reply_port_bin/0,
-         stats_reply_port_rec/0
-         %% stats_reply_queue_bin/0,
-         %% stats_reply_queue_rec/0,
-         %% stats_reply_vendor_bin/0,
-         %% stats_reply_vendor_rec/0,
-]).
+         stats_reply_port_rec/0,
+         stats_reply_queue_bin/0,
+         stats_reply_queue_rec/0,
+         stats_reply_vendor_bin/0,
+         stats_reply_vendor_rec/0,
+         barrier_request_bin/0,
+         barrier_request_rec/0,
+         barrier_reply_bin/0,
+         barrier_reply_rec/0,
+         queue_get_config_request_bin/0,
+         queue_get_config_request_rec/0,
+         queue_get_config_reply_bin/0,
+         queue_get_config_reply_rec/0]).
  
 -include_lib("../include/of_v10.hrl").
 
@@ -1138,6 +1145,114 @@ stats_reply_port_rec() ->
                                     rx_crc_err   = 23333333,
                                     collisions   = 24444444},
     #of_v10_stats_reply{more = false, body = Body}.
+
+stats_reply_queue_bin() ->
+    << ?OF_V10_STATS_TYPE_QUEUE : 16,      %% Type
+       0                        : 15,      %% Reserved
+       0                        : 1,       %% More flag
+       11                       : 16,      %% Port no
+       0                        : 16,      %% Padding
+       2222                     : 32,      %% Queue ID
+       33333333                 : 64,      %% TX bytes
+       44444444                 : 64,      %% TX packets
+       55555555                 : 64 >>.   %% TX errors
+
+stats_reply_queue_rec() ->
+    Body = #of_v10_queue_stats_reply{port_no    = 11,
+                                     queue_id   = 2222,
+                                     tx_bytes   = 33333333,
+                                     tx_packets = 44444444,
+                                     tx_errors  = 55555555},
+    #of_v10_stats_reply{more = false, body = Body}.
+
+stats_reply_vendor_bin() ->
+    Vendor = << 1, 2, 3 >>,
+    << ?OF_V10_STATS_TYPE_VENDOR : 16,      %% Type
+       0                         : 15,      %% Reserved
+       0                         : 1,       %% More flag
+       1111                      : 32,      %% Vendor ID
+       Vendor/binary >>.
+
+stats_reply_vendor_rec() ->
+    Body = #of_v10_vendor_stats_reply{vendor_id = 1111,
+                                      body      = << 1, 2, 3 >>},
+    #of_v10_stats_reply{more = false, body = Body}.
+
+barrier_request_bin() ->
+    << >>.
+
+barrier_request_rec() ->
+    #of_v10_barrier_request{}.
+
+barrier_reply_bin() ->
+    << >>.
+
+barrier_reply_rec() ->
+    #of_v10_barrier_reply{}.
+
+queue_get_config_request_bin() ->
+    << 11 : 16,      %% Port
+       0  : 16 >>.   %% Padding
+
+queue_get_config_request_rec() ->
+    #of_v10_queue_get_config_request{port = 11}.
+
+queue_property_none_bin() ->
+    << ?OF_V10_QUEUE_PROPERTY_TYPE_NONE : 16,      %% Type 
+        8                               : 16,      %% Length
+        0                               : 32 >>.   %% Padding
+
+queue_property_min_rate_bin() ->
+    << ?OF_V10_QUEUE_PROPERTY_TYPE_MIN_RATE : 16,      %% Type 
+        16                                  : 16,      %% Length
+        0                                   : 32,      %% Padding
+        11                                  : 16,      %% Min rate
+        0                                   : 48 >>.   %% Padding
+
+queue_properties_bin() ->
+    QueuePropertyMinRate = queue_property_min_rate_bin(),
+    QueuePropertyNone    = queue_property_none_bin(),
+    << QueuePropertyMinRate/binary,
+       QueuePropertyNone/binary >>.
+
+queue_bin() ->
+    Properties = queue_properties_bin(),
+    Length = 8 + size(Properties),
+    << 1111   : 32,            %% Queue ID
+       Length : 16,            %% Length,
+       0      : 16,            %% Padding
+       Properties/binary >>.
+
+queues_bin() ->
+    Queue1 = queue_bin(),
+    Queue2 = queue_bin(),
+    << Queue1/binary,
+       Queue2/binary >>.
+    
+queue_get_config_reply_bin() ->
+    Queues = queues_bin(),
+    << 11 : 16,      %% Port
+       0  : 16,      %% Padding
+       Queues/binary >>.
+
+queue_property_min_rate_rec() ->
+    #of_v10_queue_property_min_rate{rate = 11}.
+
+queue_properties_rec() ->
+    [queue_property_min_rate_rec()].
+
+queue_rec() ->
+    #of_v10_queue{queue_id = 1111,
+                  properties = queue_properties_rec()}.
+
+queues_rec() ->
+    Queue1 = queue_rec(),
+    Queue2 = queue_rec(),
+    [Queue1, Queue2].
+    
+queue_get_config_reply_rec() ->
+    #of_v10_queue_get_config_reply{port   = 11, 
+                                   queues = queues_rec()}.
 
 %% TODO: negative test cases
 %% TODO: unrecognized action

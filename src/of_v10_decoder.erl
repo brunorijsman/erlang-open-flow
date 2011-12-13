@@ -871,14 +871,38 @@ decode_stats_reply_port_test() ->
     ExpectedRec = of_v10_test_msgs:stats_reply_port_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
-%% decode_stats_reply_queue_test() ->
-%%     Bin = of_v10_test_msgs:stats_reply_queue_bin(),
-%%     ActualRec = decode_stats_reply(Bin),
-%%     ExpectedRec = of_v10_test_msgs:stats_reply_queue_rec(),
-%%     ?assertEqual(ExpectedRec, ActualRec).
+decode_stats_reply_queue_test() ->
+    Bin = of_v10_test_msgs:stats_reply_queue_bin(),
+    ActualRec = decode_stats_reply(Bin),
+    ExpectedRec = of_v10_test_msgs:stats_reply_queue_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
 
-%% decode_stats_reply_vendor_test() ->
-%%     Bin = of_v10_test_msgs:stats_reply_vendor_bin(),
-%%     ActualRec = decode_stats_reply(Bin),
-%%     ExpectedRec = of_v10_test_msgs:stats_reply_vendor_rec(),
-%%     ?assertEqual(ExpectedRec, ActualRec).
+decode_stats_reply_vendor_test() ->
+    Bin = of_v10_test_msgs:stats_reply_vendor_bin(),
+    ActualRec = decode_stats_reply(Bin),
+    ExpectedRec = of_v10_test_msgs:stats_reply_vendor_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_barrier_request_test() ->
+    Bin = of_v10_test_msgs:barrier_request_bin(),
+    ActualRec = decode_barrier_request(Bin),
+    ExpectedRec = of_v10_test_msgs:barrier_request_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_barrier_reply_test() ->
+    Bin = of_v10_test_msgs:barrier_reply_bin(),
+    ActualRec = decode_barrier_reply(Bin),
+    ExpectedRec = of_v10_test_msgs:barrier_reply_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_queue_get_config_request_test() ->
+    Bin = of_v10_test_msgs:queue_get_config_request_bin(),
+    ActualRec = decode_queue_get_config_request(Bin),
+    ExpectedRec = of_v10_test_msgs:queue_get_config_request_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).
+
+decode_queue_get_config_reply_test() ->
+    Bin = of_v10_test_msgs:queue_get_config_reply_bin(),
+    ActualRec = decode_queue_get_config_reply(Bin),
+    ExpectedRec = of_v10_test_msgs:queue_get_config_reply_rec(),
+    ?assertEqual(ExpectedRec, ActualRec).

@@ -539,11 +539,6 @@
         << Port : 16,
            _Pad : 16 >>.
 
--define(OF_V10_QUEUE_PROPERTIES,
-        << Type : 16,
-           Len  : 16,
-           Body/binary >>.
-
 -define(OF_V10_QUEUE_GET_CONFIG_REPLY_PATTERN,
         << Port : 16,
            _Pad : 16,
@@ -558,13 +553,14 @@
 -define(OF_V10_QUEUE_PROPERTIES_PATTERN,
         << Type : 16,
            Len  : 16,
+           _Pad : 32,
            Rest/binary >>.
 
 -define(OF_V10_QUEUE_PROPERTY_NONE_PATTERN, << >>).
 
 -define(OF_V10_QUEUE_PROPERTY_MIN_RATE_PATTERN,
         << Rate : 16,
-           _Pad : 47 >>.
+           _Pad : 48 >>.
 
 -type of_v10_version() :: ?OF_V10_VERSION.
 
