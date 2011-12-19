@@ -23,13 +23,14 @@
 -include_lib("eunit/include/eunit.hrl").
 
 -include_lib("../include/of.hrl").
--include_lib("../include/of_v11.hrl").
+-include_lib("../include/of_v10.hrl").
 
 -record(of_connection_state, {
           state,
           receive_state,
           receive_need_len,
           received_data,
+          received_header,
           receiver_pid,
           socket}).
 
@@ -70,6 +71,7 @@ init([ReceiverPid]) ->
       receive_state    = undefined,
       receive_need_len = undefined,
       received_data    = undefined,
+      received_header  = undefined,
       receiver_pid     = ReceiverPid,
       socket           = undefined},
     {ok, State}.
@@ -143,9 +145,12 @@ code_change(_OldVersion, State, _Extra) ->
 %%
 
 receive_data(State, Data) ->
+    io:format("OldState = ~w~n", [State]),
+    Socket = State#of_connection_state.socket,
+    ok = inet:setopts(Socket, [{active, once}]),
     NewState = append_data(State, Data),
+    io:format("Received ~w bytes~n", [byte_size(NewState#of_connection_state.received_data)]),
     io:format("NewState = ~w~n", [NewState]),
-    io:format("~w~n", [byte_size(NewState#of_connection_state.received_data)]),
     consume_data(NewState).
 
 append_data(State, Data) ->
@@ -157,36 +162,53 @@ consume_data(#of_connection_state{receive_state    = ReceiveState,
                                   received_data    = ReceivedData, 
                                   receive_need_len = ReceiveNeedLen} = State)
   when byte_size(ReceivedData) >= ReceiveNeedLen ->
-    io:format("consume_data 1 State = ~w~n", [State]),
-    case ReceiveState of
-        header ->
-            consume_header(State);
-        body ->
-            consume_body(State)
-    end;
-%% TODO: loop => consume more data
+    io:format("Collected data is ~w (>= ~w needed bytes)~n", [ReceivedData, ReceiveNeedLen]),
+    <<ConsumeData: ReceiveNeedLen/binary, RestData/binary>> = ReceivedData,
+    NewState1 = State#of_connection_state{received_data = RestData, receive_need_len = 0},
+    NewState2 = case ReceiveState of
+                    header ->
+                        consume_header(NewState1, ConsumeData);
+                    body ->
+                        consume_body(NewState1, ConsumeData)
+                end,
+    consume_data(NewState2);
 
 consume_data(State) ->
-    io:format("consume_data 2 State = ~w~n", [State]),
+    io:format("Need more data before can process: have ~w more bytes~n", [State#of_connection_state.receive_need_len]),
     State.
 
 %% TODO: Catch decode exceptions
 %% TODO: Be consistent in naming (Data vs Bin)
 %% TODO: Update receive state and needed_len
 
-consume_header(#of_connection_state{received_data = ReceivedData} = State) ->
+consume_header(State, HeaderBin) ->
     io:format("consume_header State = ~w~n", [State]),
-    <<HeaderData: ?OF_HEADER_LEN/binary, RestData/binary>> = ReceivedData,
-    HeaderRec = of_v10_decoder:decode_header(HeaderData),
+    HeaderRec = of_v10_decoder:decode_header(HeaderBin),
     io:format("HeaderRec = ~w~n", [HeaderRec]),
-    State#of_connection_state{received_data = RestData}.
+    #of_v10_header{length = Length} = HeaderRec,
+    BodyLength = Length - ?OF_V10_HEADER_LEN,    %% TODO: validate >=
+    State#of_connection_state{receive_state    = body,
+                              receive_need_len = BodyLength,
+                              received_header  = HeaderRec}.
 
 
 %% TODO: Implement this
 %% TODO: Send decoded message to receiver pid
 
-consume_body(State) ->
-    State.
+
+consume_body(State, BodyBin) ->
+    io:format("consume_body State = ~w~n", [State]),
+    io:format("BodyBin = ~w~n", [BodyBin]),
+    #of_connection_state{received_header = HeaderRec,
+                         receiver_pid    = ReceivedPid} = State,
+    #of_v10_header{type = MessageType} = HeaderRec,
+    MessageRec = of_v10_decoder:decode_body(MessageType, BodyBin),
+    io:format("MessageRec = ~w~n", [MessageRec]),
+    ReceivedPid ! {of_receive_message, MessageRec},
+    State#of_connection_state{receive_state    = body,
+                              receive_need_len = ?OF_HEADER_LEN,
+                              received_header  = undefined}.
+
     
 %%
 %% Unit tests. 

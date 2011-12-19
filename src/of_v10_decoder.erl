@@ -7,28 +7,30 @@
 -module(of_v10_decoder).
 
 -export([decode_header/1,
-         decode_hello/1,
-         decode_error/1,
-         decode_echo_request/1,
-         decode_echo_reply/1,
-         decode_vendor/1,
-         decode_features_request/1,
-         decode_features_reply/1,
-         decode_get_config_request/1,
-         decode_get_config_reply/1,
-         decode_set_config/1,
-         decode_packet_in/1,
-         decode_flow_removed/1,
-         decode_port_status/1,
-         decode_packet_out/1,
-         decode_flow_mod/1,
-         decode_port_mod/1,
-         decode_stats_request/1,
-         decode_stats_reply/1,
-         decode_barrier_request/1,
-         decode_barrier_reply/1,
-         decode_queue_get_config_request/1,
-         decode_queue_get_config_reply/1]).
+         decode_body/2]).
+
+         %% decode_hello/1,
+         %% decode_error/1,
+         %% decode_echo_request/1,
+         %% decode_echo_reply/1,
+         %% decode_vendor/1,
+         %% decode_features_request/1,
+         %% decode_features_reply/1,
+         %% decode_get_config_request/1,
+         %% decode_get_config_reply/1,
+         %% decode_set_config/1,
+         %% decode_packet_in/1,
+         %% decode_flow_removed/1,
+         %% decode_port_status/1,
+         %% decode_packet_out/1,
+         %% decode_flow_mod/1,
+         %% decode_port_mod/1,
+         %% decode_stats_request/1,
+         %% decode_stats_reply/1,
+         %% decode_barrier_request/1,
+         %% decode_barrier_reply/1,
+         %% decode_queue_get_config_request/1,
+         %% decode_queue_get_config_reply/1]).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -57,6 +59,46 @@ decode_header(?OF_V10_HEADER_PATTERN) ->
         true ->
             Header
     end.
+
+%% TODO: Throw exception for unrecognized message type
+-spec decode_body(of_v10_message_type(), binary()) -> {of_v10_message(), binary()}.
+decode_body(MessageType, BodyBin) ->
+    case MessageType of
+        ?OF_V10_MESSAGE_TYPE_HELLO -> 
+            decode_hello(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_ERROR -> 
+            decode_echo_request(BodyBin);
+%%         ?OF_V10_MESSAGE_TYPE_ECHO_REQUEST
+%%         ?OF_V10_MESSAGE_TYPE_ECHO_REPLY,               3).
+%% ?OF_V10_MESSAGE_TYPE_VENDOR,                   4).
+%% ?OF_V10_MESSAGE_TYPE_FEATURES_REQUEST,         5).
+%% ?OF_V10_MESSAGE_TYPE_FEATURES_REPLY,           6).
+%% ?OF_V10_MESSAGE_TYPE_GET_CONFIG_REQUEST,       7).
+%% ?OF_V10_MESSAGE_TYPE_GET_CONFIG_REPLY,         8).
+%% ?OF_V10_MESSAGE_TYPE_SET_CONFIG,               9).
+%% ?OF_V10_MESSAGE_TYPE_PACKET_IN,                10).
+%% ?OF_V10_MESSAGE_TYPE_FLOW_REMOVED,             11).
+%% ?OF_V10_MESSAGE_TYPE_PORT_STATUS,              12).
+%% ?OF_V10_MESSAGE_TYPE_PACKET_OUT,               13).
+%% ?OF_V10_MESSAGE_TYPE_FLOW_MOD,                 14).
+%% ?OF_V10_MESSAGE_TYPE_PORT_MOD,                 15).
+%% ?OF_V10_MESSAGE_TYPE_STATS_REQUEST,            16).
+%% ?OF_V10_MESSAGE_TYPE_STATS_REPLY,              17).
+%% ?OF_V10_MESSAGE_TYPE_BARRIER_REQUEST,          18).
+%% ?OF_V10_MESSAGE_TYPE_BARRIER_REPLY,            19).
+%% ?OF_V10_MESSAGE_TYPE_QUEUE_GET_CONFIG_REQUEST, 20).
+        ?OF_V10_MESSAGE_TYPE_QUEUE_GET_CONFIG_REPLY ->
+            decode_queue_get_config_reply(BodyBin)
+    end.
+        
+        
+    
+    
+
+
+%%
+%% Internal functions.
+%%
 
 -spec decode_hello(binary()) -> #of_v10_hello{}.
 decode_hello(?OF_V10_HELLO_PATTERN) ->
@@ -223,10 +265,6 @@ decode_queue_get_config_reply(?OF_V10_QUEUE_GET_CONFIG_REPLY_PATTERN) ->
       port = Port,
       queues = decode_queues(Queues)
      }.
-
-%%
-%% Internal functions.
-%%
 
 -spec decode_capabilities(binary()) -> #of_v10_capabilities{}.
 decode_capabilities(?OF_V10_CAPABILITIES_PATTERN) ->
