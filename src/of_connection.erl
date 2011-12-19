@@ -1,6 +1,8 @@
 %% @author Bruno Rijsman <brunorijsman@hotmail.com>
 %% @copyright 2011 Bruno Rijsman
 
+%% TODO: Support both v1.0 and v1.1
+
 -module(of_connection).
 
 -behavior(gen_server).
@@ -32,12 +34,11 @@
           socket}).
 
 %% TODO: State (receive data) needs to be updated when connect or close
+%% TODO: add specs everywhere; avoid generic term()
 
 %%
 %% Exported functions.
 %%
-
-%% TODO: add specs everywhere; avoid generic term()
 
 -spec start_link() -> term().   
 start_link() ->
@@ -62,8 +63,6 @@ send(Pid, Message) ->
 %%                 
 %% gen_server callbacks.
 %%
-
-%% TODO: Add -spec for all of the following
 
 init([ReceiverPid]) ->
     State = #of_connection_state{
@@ -178,7 +177,7 @@ consume_data(State) ->
 consume_header(#of_connection_state{received_data = ReceivedData} = State) ->
     io:format("consume_header State = ~w~n", [State]),
     <<HeaderData: ?OF_HEADER_LEN/binary, RestData/binary>> = ReceivedData,
-    HeaderRec = of_decoder:decode_header(HeaderData),
+    HeaderRec = of_v10_decoder:decode_header(HeaderData),
     io:format("HeaderRec = ~w~n", [HeaderRec]),
     State#of_connection_state{received_data = RestData}.
 
