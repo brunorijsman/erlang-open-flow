@@ -8,6 +8,7 @@
 %% TODO: Report unit test details (error messages, run time, etc.)
 %% TODO: Add color coding (green for pass, red for fail)
 %% TODO: Coverage counts are statements, not lines
+%% TODO: Order results alphabetically by module name
 
 -module(of_cover).
 

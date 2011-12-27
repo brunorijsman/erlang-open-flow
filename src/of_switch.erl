@@ -47,9 +47,10 @@ handle_cast(Cast, State) ->
     io:format("of_switch cast: ~w~n", [Cast]),
     {noreply, State}.
 
-handle_info({of_receive_message, Message}, State) ->
-    ok = switch_message_received(State, Message),
-    {noreply, State};
+handle_info({of_receive_message, Xid, Message}, State) ->
+    io:format("Received xid=0x~.16b message=~w~n", [Xid, Message]),
+    NewState = switch_message_received(State, Xid, Message),
+    {noreply, NewState};
 
 handle_info(Info, State) ->
     io:format("of_switch info: ~w~n", [Info]),
@@ -72,14 +73,30 @@ connect(State) ->
     switch_connected(State1).
 
 switch_connected(State) ->
-    %% CONTINUE FROM HERE: send the initial hello; needs of_connection:send to be implemented
-    %% HelloMessage = #of_v10_hello{},
+    HelloMessage = #of_v10_hello{},
+    ConnectionPid = State#of_switch_state.connection_pid,
+    Xid = 0, %% TODO: Xid allocation
+    ok = of_connection:send(ConnectionPid, Xid, HelloMessage),
     State.
 
 %% TODO: add and implement switch_disconnected
 
-switch_message_received(State, Message) 
-  when is_record(Message, of_v10_hello) ->
-    io:format("Received HELLO~n"),
+%% TODO: make hello version independent
+switch_message_received(State, _Xid, Hello) 
+  when is_record(Hello, of_v10_hello) ->
+    %% TODO: state handling; version negotiation
+    State;
+
+switch_message_received(State, Xid, EchoRequest) 
+  when is_record(EchoRequest, of_v10_echo_request) ->
+    Data = EchoRequest#of_v10_echo_request.data,
+    EchoReply = #of_v10_echo_reply{data = Data},
+    ConnectionPid = State#of_switch_state.connection_pid,
+    ok = of_connection:send(ConnectionPid, Xid, EchoReply),
+    %% TODO: liveness checking (not here probably - more general)
+    State;
+
+switch_message_received(State, _Xid, _Message) ->
+    %% TODO: add missing messages
+    io:format("Message handling not implemented yet."),
     State.
-    

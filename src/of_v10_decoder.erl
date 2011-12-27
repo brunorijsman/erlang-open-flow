@@ -9,29 +9,6 @@
 -export([decode_header/1,
          decode_body/2]).
 
-         %% decode_hello/1,
-         %% decode_error/1,
-         %% decode_echo_request/1,
-         %% decode_echo_reply/1,
-         %% decode_vendor/1,
-         %% decode_features_request/1,
-         %% decode_features_reply/1,
-         %% decode_get_config_request/1,
-         %% decode_get_config_reply/1,
-         %% decode_set_config/1,
-         %% decode_packet_in/1,
-         %% decode_flow_removed/1,
-         %% decode_port_status/1,
-         %% decode_packet_out/1,
-         %% decode_flow_mod/1,
-         %% decode_port_mod/1,
-         %% decode_stats_request/1,
-         %% decode_stats_reply/1,
-         %% decode_barrier_request/1,
-         %% decode_barrier_reply/1,
-         %% decode_queue_get_config_request/1,
-         %% decode_queue_get_config_reply/1]).
-
 -include_lib("eunit/include/eunit.hrl").
 
 -include_lib("../include/of.hrl").
@@ -60,41 +37,33 @@ decode_header(?OF_V10_HEADER_PATTERN) ->
             Header
     end.
 
-%% TODO: Throw exception for unrecognized message type
 -spec decode_body(of_v10_message_type(), binary()) -> {of_v10_message(), binary()}.
 decode_body(MessageType, BodyBin) ->
     case MessageType of
-        ?OF_V10_MESSAGE_TYPE_HELLO -> 
-            decode_hello(BodyBin);
-        ?OF_V10_MESSAGE_TYPE_ERROR -> 
-            decode_echo_request(BodyBin);
-%%         ?OF_V10_MESSAGE_TYPE_ECHO_REQUEST
-%%         ?OF_V10_MESSAGE_TYPE_ECHO_REPLY,               3).
-%% ?OF_V10_MESSAGE_TYPE_VENDOR,                   4).
-%% ?OF_V10_MESSAGE_TYPE_FEATURES_REQUEST,         5).
-%% ?OF_V10_MESSAGE_TYPE_FEATURES_REPLY,           6).
-%% ?OF_V10_MESSAGE_TYPE_GET_CONFIG_REQUEST,       7).
-%% ?OF_V10_MESSAGE_TYPE_GET_CONFIG_REPLY,         8).
-%% ?OF_V10_MESSAGE_TYPE_SET_CONFIG,               9).
-%% ?OF_V10_MESSAGE_TYPE_PACKET_IN,                10).
-%% ?OF_V10_MESSAGE_TYPE_FLOW_REMOVED,             11).
-%% ?OF_V10_MESSAGE_TYPE_PORT_STATUS,              12).
-%% ?OF_V10_MESSAGE_TYPE_PACKET_OUT,               13).
-%% ?OF_V10_MESSAGE_TYPE_FLOW_MOD,                 14).
-%% ?OF_V10_MESSAGE_TYPE_PORT_MOD,                 15).
-%% ?OF_V10_MESSAGE_TYPE_STATS_REQUEST,            16).
-%% ?OF_V10_MESSAGE_TYPE_STATS_REPLY,              17).
-%% ?OF_V10_MESSAGE_TYPE_BARRIER_REQUEST,          18).
-%% ?OF_V10_MESSAGE_TYPE_BARRIER_REPLY,            19).
-%% ?OF_V10_MESSAGE_TYPE_QUEUE_GET_CONFIG_REQUEST, 20).
-        ?OF_V10_MESSAGE_TYPE_QUEUE_GET_CONFIG_REPLY ->
-            decode_queue_get_config_reply(BodyBin)
+        ?OF_V10_MESSAGE_TYPE_HELLO                    -> decode_hello(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_ERROR                    -> decode_error(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_ECHO_REQUEST             -> decode_echo_request(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_ECHO_REPLY               -> decode_echo_reply(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_VENDOR                   -> decode_vendor(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_FEATURES_REQUEST         -> decode_features_request(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_FEATURES_REPLY           -> decode_features_reply(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_GET_CONFIG_REQUEST       -> decode_get_config_request(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_GET_CONFIG_REPLY         -> decode_get_config_reply(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_SET_CONFIG               -> decode_set_config(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_PACKET_IN                -> decode_packet_in(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_FLOW_REMOVED             -> decode_flow_removed(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_PORT_STATUS              -> decode_port_status(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_PACKET_OUT               -> decode_packet_out(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_FLOW_MOD                 -> decode_flow_mod(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_PORT_MOD                 -> decode_port_mod(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_STATS_REQUEST            -> decode_stats_request(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_STATS_REPLY              -> decode_stats_reply(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_BARRIER_REQUEST          -> decode_barrier_request(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_BARRIER_REPLY            -> decode_barrier_reply(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_QUEUE_GET_CONFIG_REQUEST -> decode_queue_get_config_request(BodyBin);
+        ?OF_V10_MESSAGE_TYPE_QUEUE_GET_CONFIG_REPLY   -> decode_queue_get_config_reply(BodyBin)
+        %% TODO: Throw exception for unrecognized message type
     end.
-        
-        
-    
-    
-
 
 %%
 %% Internal functions.
@@ -617,330 +586,330 @@ decode_header_bad_message_type_test() ->
 
 decode_hello_test() ->
     Bin = of_v10_test_msgs:hello_bin(),
-    ActualRec = decode_hello(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_HELLO, Bin),
     ExpectedRec = of_v10_test_msgs:hello_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_hello_with_extension_test() ->
     Bin = of_v10_test_msgs:hello_with_extension_bin(),
-    ActualRec = decode_hello(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_HELLO, Bin),
     ExpectedRec = of_v10_test_msgs:hello_with_extension_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_error_test() ->
     Bin = of_v10_test_msgs:error_bin(),
-    ActualRec = decode_error(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_ERROR, Bin),
     ExpectedRec = of_v10_test_msgs:error_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_error_with_data_test() ->
     Bin = of_v10_test_msgs:error_with_data_bin(),
-    ActualRec = decode_error(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_ERROR, Bin),
     ExpectedRec = of_v10_test_msgs:error_with_data_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_echo_request_test() ->
     Bin = of_v10_test_msgs:echo_request_bin(),
-    ActualRec = decode_echo_request(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_ECHO_REQUEST, Bin),
     ExpectedRec = of_v10_test_msgs:echo_request_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_echo_request_with_data_test() ->
     Bin = of_v10_test_msgs:echo_request_with_data_bin(),
-    ActualRec = decode_echo_request(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_ECHO_REQUEST, Bin),
     ExpectedRec = of_v10_test_msgs:echo_request_with_data_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_echo_reply_test() ->
     Bin = of_v10_test_msgs:echo_reply_bin(),
-    ActualRec = decode_echo_reply(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_ECHO_REPLY, Bin),
     ExpectedRec = of_v10_test_msgs:echo_reply_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_echo_reply_with_data_test() ->
     Bin = of_v10_test_msgs:echo_reply_with_data_bin(),
-    ActualRec = decode_echo_reply(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_ECHO_REPLY, Bin),
     ExpectedRec = of_v10_test_msgs:echo_reply_with_data_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_vendor_test() ->
     Bin = of_v10_test_msgs:vendor_bin(),
-    ActualRec = decode_vendor(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_VENDOR, Bin),
     ExpectedRec = of_v10_test_msgs:vendor_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_vendor_with_data_test() ->
     Bin = of_v10_test_msgs:vendor_with_data_bin(),
-    ActualRec = decode_vendor(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_VENDOR, Bin),
     ExpectedRec = of_v10_test_msgs:vendor_with_data_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_features_request_test() ->
     Bin = of_v10_test_msgs:features_request_bin(),
-    ActualRec = decode_features_request(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_FEATURES_REQUEST, Bin),
     ExpectedRec = of_v10_test_msgs:features_request_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_features_reply_test() ->
     Bin = of_v10_test_msgs:features_reply_bin(),
-    ActualRec = decode_features_reply(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_FEATURES_REPLY, Bin),
     ExpectedRec = of_v10_test_msgs:features_reply_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_get_config_request_test() ->
     Bin = of_v10_test_msgs:get_config_request_bin(),
-    ActualRec = decode_get_config_request(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_GET_CONFIG_REQUEST, Bin),
     ExpectedRec = of_v10_test_msgs:get_config_request_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_get_config_reply_test() ->
     Bin = of_v10_test_msgs:get_config_reply_bin(),
-    ActualRec = decode_get_config_reply(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_GET_CONFIG_REPLY, Bin),
     ExpectedRec = of_v10_test_msgs:get_config_reply_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_set_config_test() ->
     Bin = of_v10_test_msgs:set_config_bin(),
-    ActualRec = decode_set_config(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_SET_CONFIG, Bin),
     ExpectedRec = of_v10_test_msgs:set_config_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_in_test() ->
     Bin = of_v10_test_msgs:packet_in_bin(),
-    ActualRec = decode_packet_in(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_IN, Bin),
     ExpectedRec = of_v10_test_msgs:packet_in_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_flow_removed_test() ->
     Bin = of_v10_test_msgs:flow_removed_bin(),
-    ActualRec = decode_flow_removed(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_FLOW_REMOVED, Bin),
     ExpectedRec = of_v10_test_msgs:flow_removed_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_port_status_test() ->
     Bin = of_v10_test_msgs:port_status_bin(),
-    ActualRec = decode_port_status(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PORT_STATUS, Bin),
     ExpectedRec = of_v10_test_msgs:port_status_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_out_no_actions_no_data_test() ->
     Bin = of_v10_test_msgs:packet_out_no_actions_no_data_bin(),
-    ActualRec = decode_packet_out(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_OUT, Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_no_actions_no_data_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_out_no_actions_data_test() ->
     Bin = of_v10_test_msgs:packet_out_no_actions_data_bin(),
-    ActualRec = decode_packet_out(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_OUT, Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_no_actions_data_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_out_action_output_test() ->
     Bin = of_v10_test_msgs:packet_out_action_output_bin(),
-    ActualRec = decode_packet_out(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_OUT, Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_action_output_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_out_action_set_vlan_vid_test() ->
     Bin = of_v10_test_msgs:packet_out_action_set_vlan_vid_bin(),
-    ActualRec = decode_packet_out(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_OUT, Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_action_set_vlan_vid_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_out_action_set_vlan_pcp_test() ->
     Bin = of_v10_test_msgs:packet_out_action_set_vlan_pcp_bin(),
-    ActualRec = decode_packet_out(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_OUT, Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_action_set_vlan_pcp_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_out_action_stip_vlan_test() ->
     Bin = of_v10_test_msgs:packet_out_action_strip_vlan_bin(),
-    ActualRec = decode_packet_out(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_OUT, Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_action_strip_vlan_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_out_action_set_dl_src_test() ->
     Bin = of_v10_test_msgs:packet_out_action_set_dl_src_bin(),
-    ActualRec = decode_packet_out(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_OUT, Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_action_set_dl_src_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_out_action_set_dl_dst_test() ->
     Bin = of_v10_test_msgs:packet_out_action_set_dl_dst_bin(),
-    ActualRec = decode_packet_out(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_OUT, Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_action_set_dl_dst_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_out_action_set_nw_src_test() ->
     Bin = of_v10_test_msgs:packet_out_action_set_nw_src_bin(),
-    ActualRec = decode_packet_out(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_OUT, Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_action_set_nw_src_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_out_action_set_nw_dst_test() ->
     Bin = of_v10_test_msgs:packet_out_action_set_nw_dst_bin(),
-    ActualRec = decode_packet_out(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_OUT, Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_action_set_nw_dst_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_out_action_set_nw_tos_test() ->
     Bin = of_v10_test_msgs:packet_out_action_set_nw_tos_bin(),
-    ActualRec = decode_packet_out(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_OUT, Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_action_set_nw_tos_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_out_action_set_tp_src_test() ->
     Bin = of_v10_test_msgs:packet_out_action_set_tp_src_bin(),
-    ActualRec = decode_packet_out(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_OUT, Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_action_set_tp_src_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_out_action_set_tp_dst_test() ->
     Bin = of_v10_test_msgs:packet_out_action_set_tp_dst_bin(),
-    ActualRec = decode_packet_out(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_OUT, Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_action_set_tp_dst_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_out_action_enqueue_test() ->
     Bin = of_v10_test_msgs:packet_out_action_enqueue_bin(),
-    ActualRec = decode_packet_out(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_OUT, Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_action_enqueue_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_out_action_vendor_test() ->
     Bin = of_v10_test_msgs:packet_out_action_vendor_bin(),
-    ActualRec = decode_packet_out(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_OUT, Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_action_vendor_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_out_multiple_actions_no_data_test() ->
     Bin = of_v10_test_msgs:packet_out_multiple_actions_no_data_bin(),
-    ActualRec = decode_packet_out(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_OUT, Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_multiple_actions_no_data_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_packet_out_multiple_actions_data_test() ->
     Bin = of_v10_test_msgs:packet_out_multiple_actions_data_bin(),
-    ActualRec = decode_packet_out(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_OUT, Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_multiple_actions_data_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_flow_mod_test() ->
     Bin = of_v10_test_msgs:flow_mod_bin(),
-    ActualRec = decode_flow_mod(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_FLOW_MOD, Bin),
     ExpectedRec = of_v10_test_msgs:flow_mod_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_port_mod_test() ->
     Bin = of_v10_test_msgs:port_mod_bin(),
-    ActualRec = decode_port_mod(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PORT_MOD, Bin),
     ExpectedRec = of_v10_test_msgs:port_mod_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_stats_request_desc_test() ->
     Bin = of_v10_test_msgs:stats_request_desc_bin(),
-    ActualRec = decode_stats_request(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_STATS_REQUEST, Bin),
     ExpectedRec = of_v10_test_msgs:stats_request_desc_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_stats_request_flow_test() ->
     Bin = of_v10_test_msgs:stats_request_flow_bin(),
-    ActualRec = decode_stats_request(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_STATS_REQUEST, Bin),
     ExpectedRec = of_v10_test_msgs:stats_request_flow_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_stats_request_aggregate_test() ->
     Bin = of_v10_test_msgs:stats_request_aggregate_bin(),
-    ActualRec = decode_stats_request(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_STATS_REQUEST, Bin),
     ExpectedRec = of_v10_test_msgs:stats_request_aggregate_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_stats_request_table_test() ->
     Bin = of_v10_test_msgs:stats_request_table_bin(),
-    ActualRec = decode_stats_request(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_STATS_REQUEST, Bin),
     ExpectedRec = of_v10_test_msgs:stats_request_table_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_stats_request_port_test() ->
     Bin = of_v10_test_msgs:stats_request_port_bin(),
-    ActualRec = decode_stats_request(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_STATS_REQUEST, Bin),
     ExpectedRec = of_v10_test_msgs:stats_request_port_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_stats_request_queue_test() ->
     Bin = of_v10_test_msgs:stats_request_queue_bin(),
-    ActualRec = decode_stats_request(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_STATS_REQUEST, Bin),
     ExpectedRec = of_v10_test_msgs:stats_request_queue_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_stats_request_vendor_test() ->
     Bin = of_v10_test_msgs:stats_request_vendor_bin(),
-    ActualRec = decode_stats_request(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_STATS_REQUEST, Bin),
     ExpectedRec = of_v10_test_msgs:stats_request_vendor_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_stats_reply_desc_test() ->
     Bin = of_v10_test_msgs:stats_reply_desc_bin(),
-    ActualRec = decode_stats_reply(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_STATS_REPLY, Bin),
     ExpectedRec = of_v10_test_msgs:stats_reply_desc_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_stats_reply_flow_test() ->
     Bin = of_v10_test_msgs:stats_reply_flow_bin(),
-    ActualRec = decode_stats_reply(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_STATS_REPLY, Bin),
     ExpectedRec = of_v10_test_msgs:stats_reply_flow_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_stats_reply_aggregate_test() ->
     Bin = of_v10_test_msgs:stats_reply_aggregate_bin(),
-    ActualRec = decode_stats_reply(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_STATS_REPLY, Bin),
     ExpectedRec = of_v10_test_msgs:stats_reply_aggregate_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_stats_reply_table_test() ->
     Bin = of_v10_test_msgs:stats_reply_table_bin(),
-    ActualRec = decode_stats_reply(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_STATS_REPLY, Bin),
     ExpectedRec = of_v10_test_msgs:stats_reply_table_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_stats_reply_port_test() ->
     Bin = of_v10_test_msgs:stats_reply_port_bin(),
-    ActualRec = decode_stats_reply(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_STATS_REPLY, Bin),
     ExpectedRec = of_v10_test_msgs:stats_reply_port_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_stats_reply_queue_test() ->
     Bin = of_v10_test_msgs:stats_reply_queue_bin(),
-    ActualRec = decode_stats_reply(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_STATS_REPLY, Bin),
     ExpectedRec = of_v10_test_msgs:stats_reply_queue_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_stats_reply_vendor_test() ->
     Bin = of_v10_test_msgs:stats_reply_vendor_bin(),
-    ActualRec = decode_stats_reply(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_STATS_REPLY, Bin),
     ExpectedRec = of_v10_test_msgs:stats_reply_vendor_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_barrier_request_test() ->
     Bin = of_v10_test_msgs:barrier_request_bin(),
-    ActualRec = decode_barrier_request(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_BARRIER_REQUEST, Bin),
     ExpectedRec = of_v10_test_msgs:barrier_request_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_barrier_reply_test() ->
     Bin = of_v10_test_msgs:barrier_reply_bin(),
-    ActualRec = decode_barrier_reply(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_BARRIER_REPLY, Bin),
     ExpectedRec = of_v10_test_msgs:barrier_reply_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_queue_get_config_request_test() ->
     Bin = of_v10_test_msgs:queue_get_config_request_bin(),
-    ActualRec = decode_queue_get_config_request(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_QUEUE_GET_CONFIG_REQUEST, Bin),
     ExpectedRec = of_v10_test_msgs:queue_get_config_request_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
 decode_queue_get_config_reply_test() ->
     Bin = of_v10_test_msgs:queue_get_config_reply_bin(),
-    ActualRec = decode_queue_get_config_reply(Bin),
+    ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_QUEUE_GET_CONFIG_REPLY, Bin),
     ExpectedRec = of_v10_test_msgs:queue_get_config_reply_rec(),
     ?assertEqual(ExpectedRec, ActualRec).

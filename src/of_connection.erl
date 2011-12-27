@@ -11,7 +11,7 @@
          stop/1,
          connect/3,
          close/1,
-         send/2]).
+         send/3]).
 
 -export([init/1,
          handle_call/3,
@@ -55,11 +55,8 @@ connect(Pid, Address, Port) ->
 close(Pid) ->
     gen_server:call(Pid, close).
 
-send(Pid, Message) ->
-    gen_server:call(Pid, {send, Message}).
-
-%% TODO: add bind(Pid, ...)
-%% TODO: add send_message(Pid, Message)
+send(Pid, Xid, MessageRec) ->
+    gen_server:call(Pid, {send, Xid, MessageRec}).
 
 %%                 
 %% gen_server callbacks.
@@ -113,10 +110,12 @@ handle_call(close, _From, State) ->
                  socket           = undefined},
     {reply, ok, NewState};
 
-handle_call({send, _Message}, _From, State) ->
-    %% TODO: encode message
-    %% TODO: call gen_tcp to send message
-    %% TODO: make sure TCP connection is connected
+handle_call({send, Xid, MessageRec}, _From, State) ->
+    MessageBin = of_v10_encoder:encode(MessageRec, Xid),
+    Socket = State#of_connection_state.socket,
+    io:format("Sending ~w ~w~n", [Socket, MessageBin]),
+    ok = gen_tcp:send(Socket, MessageBin),    %% TODO: handle send failure. Async send?
+    io:format("Sent ~w (~w)~n", [MessageRec, MessageBin]),
     {reply, ok, State}.
     
 handle_cast(_Cast, State) ->
@@ -201,11 +200,11 @@ consume_body(State, BodyBin) ->
     io:format("BodyBin = ~w~n", [BodyBin]),
     #of_connection_state{received_header = HeaderRec,
                          receiver_pid    = ReceivedPid} = State,
-    #of_v10_header{type = MessageType} = HeaderRec,
+    #of_v10_header{type = MessageType, xid = Xid} = HeaderRec,
     MessageRec = of_v10_decoder:decode_body(MessageType, BodyBin),
     io:format("MessageRec = ~w~n", [MessageRec]),
-    ReceivedPid ! {of_receive_message, MessageRec},
-    State#of_connection_state{receive_state    = body,
+    ReceivedPid ! {of_receive_message, Xid, MessageRec},
+    State#of_connection_state{receive_state    = header,
                               receive_need_len = ?OF_HEADER_LEN,
                               received_header  = undefined}.
 

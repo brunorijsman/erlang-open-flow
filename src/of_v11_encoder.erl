@@ -14,6 +14,7 @@
 %% Exported functions.
 %%
 
+%% TODO: Fix this -- see v10 encoder
 encode(Message, Xid) ->
     {Type, Body} = encode_body(Message),
     Header = #of_v11_header{
