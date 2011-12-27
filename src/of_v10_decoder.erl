@@ -305,7 +305,7 @@ decode_string(Binary) ->
     decode_string(Binary, []).
 
 -spec decode_string(binary(), string()) -> string().
-decode_string(<<>>, Accum) ->
+decode_string(<< >>, Accum) ->
     lists:reverse(Accum);
 decode_string(<< 0, _/binary>>, Accum) ->
     lists:reverse(Accum);
@@ -317,7 +317,7 @@ decode_phy_ports(Binary) ->
     decode_phy_ports(Binary, []).
     
 -spec decode_phy_ports(binary(), [#of_v10_phy_port{}]) -> [#of_v10_phy_port{}].
-decode_phy_ports(<<>>, ParsedPhyPorts) ->
+decode_phy_ports(<< >>, ParsedPhyPorts) ->
     ParsedPhyPorts;
 decode_phy_ports(<<PhyPortBin: 48/binary, RestBin/binary>>, ParsedPhyPorts) ->
     PhyPortRec = decode_phy_port(PhyPortBin),
@@ -388,7 +388,7 @@ decode_actions(Actions) ->
     decode_actions(Actions, []).
     
 -spec decode_actions(binary(), [of_v10_action()]) -> [of_v10_action()].
-decode_actions(<<>>, ParsedActions) ->
+decode_actions(<< >>, ParsedActions) ->
     lists:reverse(ParsedActions);
 decode_actions(?OF_V10_ACTIONS_PATTERN, ParsedActions) ->
     BodyLen = Len-4,
@@ -503,7 +503,7 @@ decode_queues(QueuesBin) ->
     
 %% TODO: validate Len >= 8
 -spec decode_queues(binary(), [#of_v10_queue{}]) -> [#of_v10_queue{}].
-decode_queues(<<>>, QueueRecs) ->
+decode_queues(<< >>, QueueRecs) ->
     lists:reverse(QueueRecs);
 decode_queues(?OF_V10_QUEUES_PATTERN, QueueRecs) ->
     PropertiesLen = Len - 8,
@@ -517,7 +517,7 @@ decode_queue_properties(PropertiesBin) ->
     decode_queue_properties(PropertiesBin, []).
 
 -spec decode_queue_properties(binary(), [of_v10_queue_property()]) -> [of_v10_queue_property()].
-decode_queue_properties(<<>>, PropertyRecs) ->
+decode_queue_properties(<< >>, PropertyRecs) ->
     lists:reverse(PropertyRecs);
 decode_queue_properties(?OF_V10_QUEUE_PROPERTIES_PATTERN, PropertyRecs) ->
     PropertyLen = Len - 8,
