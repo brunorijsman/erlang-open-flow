@@ -351,6 +351,8 @@
            _Pad   : 56,
            Desc   : 48/binary >>.
 
+-define(OF_V10_ACTION_HEADER_LEN, 4).
+
 -define(OF_V10_ACTIONS_PATTERN,
         << Type : 16,
            Len  : 16,
@@ -366,7 +368,7 @@
 
 -define(OF_V10_ACTION_SET_VLAN_PCP_PATTERN,
         << VlanPcp : 8,
-           _Pad2   : 24 >>.
+           _Pad    : 24 >>.
 
 -define(OF_V10_ACTION_STRIP_VLAN_PATTERN,
         << _Pad : 32 >>.

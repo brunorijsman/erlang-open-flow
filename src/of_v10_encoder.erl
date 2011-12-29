@@ -1,6 +1,8 @@
 %% @author Bruno Rijsman <brunorijsman@hotmail.com>
 %% @copyright 2011 Bruno Rijsman
 
+%% TODO: Replace 2011 with 2012 everywhere
+
 -module(of_v10_encoder).
 
 -export([encode/2]).
@@ -167,9 +169,86 @@ encode_flow_match(FlowMatchRec) ->
     ?OF_V10_FLOW_MATCH_PATTERN.
 
 encode_actions(ActionList) ->
-    %% CONTINUTE FROM HERE.
-    [].
-    
+    iolist_to_binary(lists:map(fun encode_action/1, ActionList)).
+
+encode_action(ActionRec) ->
+    {Type, Rest} = if
+                       is_record(ActionRec, of_v10_action_output)       -> encode_action_output(ActionRec);
+                       is_record(ActionRec, of_v10_action_set_vlan_vid) -> encode_action_set_vlan_vid(ActionRec);
+                       is_record(ActionRec, of_v10_action_set_vlan_pcp) -> encode_action_set_vlan_pcp(ActionRec);
+                       is_record(ActionRec, of_v10_action_strip_vlan)   -> encode_action_strip_vlan(ActionRec);
+                       is_record(ActionRec, of_v10_action_set_dl_src)   -> encode_action_set_dl_src(ActionRec);
+                       is_record(ActionRec, of_v10_action_set_dl_dst)   -> encode_action_set_dl_dst(ActionRec);
+                       is_record(ActionRec, of_v10_action_set_nw_src)   -> encode_action_set_nw_src(ActionRec);
+                       is_record(ActionRec, of_v10_action_set_nw_dst)   -> encode_action_set_nw_dst(ActionRec);
+                       is_record(ActionRec, of_v10_action_set_nw_tos)   -> encode_action_set_nw_tos(ActionRec);
+                       is_record(ActionRec, of_v10_action_set_tp_src)   -> encode_action_set_tp_src(ActionRec);
+                       is_record(ActionRec, of_v10_action_set_tp_dst)   -> encode_action_set_tp_dst(ActionRec);
+                       is_record(ActionRec, of_v10_action_enqueue)      -> encode_action_enqueue(ActionRec);
+                       is_record(ActionRec, of_v10_action_vendor)       -> encode_action_vendor(ActionRec)
+                   end,
+    Len = size(Rest) + ?OF_V10_ACTION_HEADER_LEN,
+    ?OF_V10_ACTIONS_PATTERN.
+
+encode_action_output(ActionRec) ->
+    #of_v10_action_output{port = Port, max_len = MaxLen} = ActionRec,
+    {?OF_V10_ACTION_TYPE_OUTPUT, ?OF_V10_ACTION_OUTPUT_PATTERN}.
+
+encode_action_set_vlan_vid(ActionRec) ->
+    #of_v10_action_set_vlan_vid{vlan_vid = VlanVid} = ActionRec,
+    _Pad = 0,
+    {?OF_V10_ACTION_TYPE_SET_VLAN_VID, ?OF_V10_ACTION_SET_VLAN_VID_PATTERN}.
+
+encode_action_set_vlan_pcp(ActionRec) ->
+    #of_v10_action_set_vlan_pcp{vlan_pcp = VlanPcp} = ActionRec,
+    _Pad = 0,
+    {?OF_V10_ACTION_TYPE_SET_VLAN_PCP, ?OF_V10_ACTION_SET_VLAN_PCP_PATTERN}.
+
+encode_action_strip_vlan(_ActionRec) ->
+    _Pad = 0,
+    {?OF_V10_ACTION_TYPE_STRIP_VLAN, ?OF_V10_ACTION_STRIP_VLAN_PATTERN}.
+
+encode_action_set_dl_src(ActionRec) ->
+    #of_v10_action_set_dl_src{dl_src = DlAddr} = ActionRec,
+    _Pad = 0,
+    {?OF_V10_ACTION_TYPE_SET_DL_SRC, ?OF_V10_ACTION_SET_DL_ADDR_PATTERN}.
+
+encode_action_set_dl_dst(ActionRec) ->
+    #of_v10_action_set_dl_dst{dl_dst = DlAddr} = ActionRec,
+    _Pad = 0,
+    {?OF_V10_ACTION_TYPE_SET_DL_DST, ?OF_V10_ACTION_SET_DL_ADDR_PATTERN}.
+
+encode_action_set_nw_src(ActionRec) ->
+    #of_v10_action_set_nw_src{nw_src = NwAddr} = ActionRec,
+    {?OF_V10_ACTION_TYPE_SET_NW_SRC, ?OF_V10_ACTION_SET_NW_ADDR_PATTERN}.
+
+encode_action_set_nw_dst(ActionRec) ->
+    #of_v10_action_set_nw_dst{nw_dst = NwAddr} = ActionRec,
+    {?OF_V10_ACTION_TYPE_SET_NW_DST, ?OF_V10_ACTION_SET_NW_ADDR_PATTERN}.
+
+encode_action_set_nw_tos(ActionRec) ->
+    #of_v10_action_set_nw_tos{nw_tos = NwTos} = ActionRec,
+    _Pad = 0,
+    {?OF_V10_ACTION_TYPE_SET_NW_TOS, ?OF_V10_ACTION_SET_NW_TOS_PATTERN}.
+
+encode_action_set_tp_src(ActionRec) ->
+    #of_v10_action_set_tp_src{tp_src = TpPort} = ActionRec,
+    _Pad = 0,
+    {?OF_V10_ACTION_TYPE_SET_TP_SRC, ?OF_V10_ACTION_SET_TP_PORT_PATTERN}.
+
+encode_action_set_tp_dst(ActionRec) ->
+    #of_v10_action_set_tp_dst{tp_dst = TpPort} = ActionRec,
+    _Pad = 0,
+    {?OF_V10_ACTION_TYPE_SET_TP_DST, ?OF_V10_ACTION_SET_TP_PORT_PATTERN}.
+
+encode_action_enqueue(ActionRec) ->
+    #of_v10_action_enqueue{port = Port, queue_id = QueueId} = ActionRec,
+    _Pad = 0,
+    {?OF_V10_ACTION_TYPE_ENQUEUE, ?OF_V10_ACTION_ENQUEUE_PATTERN}.
+
+encode_action_vendor(ActionRec) ->
+    #of_v10_action_vendor{vendor = Vendor} = ActionRec,
+    {?OF_V10_ACTION_TYPE_VENDOR, ?OF_V10_ACTION_VENDOR_PATTERN}.
 
 -spec encode_header(#of_v10_header{}) -> binary().
 encode_header(Header) ->
@@ -197,7 +276,8 @@ encode_body(BodyRec) ->
         is_record(BodyRec, of_v10_packet_in)              -> encode_packet_in(BodyRec);
         is_record(BodyRec, of_v10_flow_removed)           -> encode_flow_removed(BodyRec);
         is_record(BodyRec, of_v10_port_status)            -> encode_port_status(BodyRec);
-        is_record(BodyRec, of_v10_packet_out)             -> encode_packet_out(BodyRec)
+        is_record(BodyRec, of_v10_packet_out)             -> encode_packet_out(BodyRec);
+        is_record(BodyRec, of_v10_flow_mod)               -> encode_flow_mod(BodyRec)
     end.
 
 encode_hello(_HelloRec) ->
@@ -225,15 +305,15 @@ encode_features_request(_FeaturesRequestRec) ->
 
 encode_features_reply(FeaturesReplyRec) ->
     #of_v10_features_reply{data_path_id = DataPathId, 
-                           n_buffers = NBuffers,
-                           n_tables = NTables,
+                           n_buffers    = NBuffers,
+                           n_tables     = NTables,
                            capabilities = CapabilitiesRec,
-                           actions = ActionsRec,
-                           ports = PortsList} = FeaturesReplyRec,
+                           actions      = ActionsRec,
+                           ports        = PortsList} = FeaturesReplyRec,
     Capabilities = encode_capabilities(CapabilitiesRec),
-    Actions = encode_actions_bitmap(ActionsRec),
-    Ports = encode_phy_ports(PortsList),
-    _Pad1 = 0,
+    Actions      = encode_actions_bitmap(ActionsRec),
+    Ports        = encode_phy_ports(PortsList),
+    _Pad1        = 0,
     {?OF_V10_MESSAGE_TYPE_FEATURES_REPLY, ?OF_V10_FEATURES_REPLY_PATTERN}.
 
 encode_get_config_request(_GetConfigRequestRec) ->
@@ -278,11 +358,27 @@ encode_port_status(PortStatusRec) ->
 
 encode_packet_out(PacketOutRec) ->
     Actions = encode_actions(PacketOutRec#of_v10_packet_out.actions),
+    ActionsLen = size(Actions),
     #of_v10_packet_out{buffer_id = BufferId,
                        in_port   = InPort,
-                       actions   = ActionRecs,
                        data      = Data} = PacketOutRec,
     {?OF_V10_MESSAGE_TYPE_PACKET_OUT, ?OF_V10_PACKET_OUT_PATTERN}.
+
+encode_flow_mod(FlowModRec) ->
+    #of_v10_flow_mod{cookie        = Cookie,
+                     command       = Command,
+                     idle_timeout  = IdleTimeout,
+                     hard_timeout  = HardTimeout,
+                     priority      = Priority,
+                     buffer_id     = BufferId,
+                     out_port      = OutPort} = FlowModRec,
+    Match        = encode_flow_match(FlowModRec#of_v10_flow_mod.match),
+    SendFlowRem  = encode_bool(FlowModRec#of_v10_flow_mod.send_flow_rem),
+    CheckOverlap = encode_bool(FlowModRec#of_v10_flow_mod.check_overlap),
+    Emerg        = encode_bool(FlowModRec#of_v10_flow_mod.emerg),
+    Actions      = encode_actions(FlowModRec#of_v10_flow_mod.actions),
+    _Reserved    = 0,
+    {?OF_V10_MESSAGE_TYPE_FLOW_MOD, ?OF_V10_FLOW_MOD_PATTERN}.
 
 %%
 %% Unit tests.
@@ -414,4 +510,112 @@ encode_body_port_status_test() ->
     Rec = of_v10_test_msgs:port_status_rec(),
     ActualResult = encode_body(Rec),
     ExpectedResult = {?OF_V10_MESSAGE_TYPE_PORT_STATUS, of_v10_test_msgs:port_status_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_packet_out_no_actions_no_data_test() ->
+    Rec = of_v10_test_msgs:packet_out_no_actions_no_data_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_PACKET_OUT, of_v10_test_msgs:packet_out_no_actions_no_data_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_packet_out_no_actions_data_test() ->
+    Rec = of_v10_test_msgs:packet_out_no_actions_data_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_PACKET_OUT, of_v10_test_msgs:packet_out_no_actions_data_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_packet_out_action_output_test() ->
+    Rec = of_v10_test_msgs:packet_out_action_output_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_PACKET_OUT, of_v10_test_msgs:packet_out_action_output_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_packet_out_action_set_vlan_vid_test() ->
+    Rec = of_v10_test_msgs:packet_out_action_set_vlan_vid_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_PACKET_OUT, of_v10_test_msgs:packet_out_action_set_vlan_vid_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_packet_out_action_set_vlan_pcp_test() ->
+    Rec = of_v10_test_msgs:packet_out_action_set_vlan_pcp_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_PACKET_OUT, of_v10_test_msgs:packet_out_action_set_vlan_pcp_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_packet_out_action_strip_vlan_test() ->
+    Rec = of_v10_test_msgs:packet_out_action_strip_vlan_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_PACKET_OUT, of_v10_test_msgs:packet_out_action_strip_vlan_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_packet_out_action_set_dl_src_test() ->
+    Rec = of_v10_test_msgs:packet_out_action_set_dl_src_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_PACKET_OUT, of_v10_test_msgs:packet_out_action_set_dl_src_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_packet_out_action_set_dl_dst_test() ->
+    Rec = of_v10_test_msgs:packet_out_action_set_dl_dst_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_PACKET_OUT, of_v10_test_msgs:packet_out_action_set_dl_dst_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_packet_out_action_set_nw_src_test() ->
+    Rec = of_v10_test_msgs:packet_out_action_set_nw_src_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_PACKET_OUT, of_v10_test_msgs:packet_out_action_set_nw_src_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_packet_out_action_set_nw_dst_test() ->
+    Rec = of_v10_test_msgs:packet_out_action_set_nw_dst_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_PACKET_OUT, of_v10_test_msgs:packet_out_action_set_nw_dst_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_packet_out_action_set_nw_tos_test() ->
+    Rec = of_v10_test_msgs:packet_out_action_set_nw_tos_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_PACKET_OUT, of_v10_test_msgs:packet_out_action_set_nw_tos_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_packet_out_action_set_tp_src_test() ->
+    Rec = of_v10_test_msgs:packet_out_action_set_tp_src_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_PACKET_OUT, of_v10_test_msgs:packet_out_action_set_tp_src_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_packet_out_action_set_tp_dst_test() ->
+    Rec = of_v10_test_msgs:packet_out_action_set_tp_dst_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_PACKET_OUT, of_v10_test_msgs:packet_out_action_set_tp_dst_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_packet_out_action_enqueue_test() ->
+    Rec = of_v10_test_msgs:packet_out_action_enqueue_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_PACKET_OUT, of_v10_test_msgs:packet_out_action_enqueue_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_packet_out_action_vendor_test() ->
+    Rec = of_v10_test_msgs:packet_out_action_vendor_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_PACKET_OUT, of_v10_test_msgs:packet_out_action_vendor_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_packet_out_multiple_actions_no_data_test() ->
+    Rec = of_v10_test_msgs:packet_out_multiple_actions_no_data_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_PACKET_OUT, of_v10_test_msgs:packet_out_multiple_actions_no_data_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_packet_out_multiple_actions_data_test() ->
+    Rec = of_v10_test_msgs:packet_out_multiple_actions_data_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_PACKET_OUT, of_v10_test_msgs:packet_out_multiple_actions_data_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_flow_mod_test() ->
+    Rec = of_v10_test_msgs:flow_mod_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_FLOW_MOD, of_v10_test_msgs:flow_mod_bin()},
     ?assertEqual(ExpectedResult, ActualResult).

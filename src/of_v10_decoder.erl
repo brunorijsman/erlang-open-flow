@@ -722,7 +722,7 @@ decode_packet_out_action_set_vlan_pcp_test() ->
     ExpectedRec = of_v10_test_msgs:packet_out_action_set_vlan_pcp_rec(),
     ?assertEqual(ExpectedRec, ActualRec).
 
-decode_packet_out_action_stip_vlan_test() ->
+decode_packet_out_action_strip_vlan_test() ->
     Bin = of_v10_test_msgs:packet_out_action_strip_vlan_bin(),
     ActualRec = decode_body(?OF_V10_MESSAGE_TYPE_PACKET_OUT, Bin),
     ExpectedRec = of_v10_test_msgs:packet_out_action_strip_vlan_rec(),
