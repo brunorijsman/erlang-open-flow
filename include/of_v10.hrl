@@ -473,6 +473,8 @@
            SerialNum : ?OF_V10_SERIAL_NUM_LEN/binary-unit:8,
            DpDesc    : ?OF_V10_DESC_STR_LEN/binary-unit:8 >>.
 
+-define(OF_V10_FLOW_STATS_REPLY_LEN_WITHOUT_ACTIONS, 88).
+
 -define(OF_V10_FLOW_STATS_REPLY_PATTERN,
         << _Length      : 16,     %% TODO: Why is this here? Am I missing something?
            TableId      : 8,
@@ -868,7 +870,6 @@
                                      #of_v10_queue_stats_request{} |
                                      #of_v10_vendor_stats_request{}.
 
-%% TODO: need this?
 -record(of_v10_stats_request, {
           body :: of_v10_stats_request_body() }).
 

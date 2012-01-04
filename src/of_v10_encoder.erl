@@ -277,7 +277,10 @@ encode_body(BodyRec) ->
         is_record(BodyRec, of_v10_flow_removed)           -> encode_flow_removed(BodyRec);
         is_record(BodyRec, of_v10_port_status)            -> encode_port_status(BodyRec);
         is_record(BodyRec, of_v10_packet_out)             -> encode_packet_out(BodyRec);
-        is_record(BodyRec, of_v10_flow_mod)               -> encode_flow_mod(BodyRec)
+        is_record(BodyRec, of_v10_flow_mod)               -> encode_flow_mod(BodyRec);
+        is_record(BodyRec, of_v10_port_mod)               -> encode_port_mod(BodyRec);
+        is_record(BodyRec, of_v10_stats_request)          -> encode_stats_request(BodyRec);
+        is_record(BodyRec, of_v10_stats_reply)            -> encode_stats_reply(BodyRec)
     end.
 
 encode_hello(_HelloRec) ->
@@ -379,6 +382,131 @@ encode_flow_mod(FlowModRec) ->
     Actions      = encode_actions(FlowModRec#of_v10_flow_mod.actions),
     _Reserved    = 0,
     {?OF_V10_MESSAGE_TYPE_FLOW_MOD, ?OF_V10_FLOW_MOD_PATTERN}.
+
+encode_port_mod(PortModRec) ->
+    #of_v10_port_mod{port_no = PortNo,
+                     hw_addr = HwAddr} = PortModRec,
+    Config    = encode_phy_port_config(PortModRec#of_v10_port_mod.config),
+    Mask      = encode_phy_port_config(PortModRec#of_v10_port_mod.mask),
+    Advertise = encode_phy_port_features(PortModRec#of_v10_port_mod.advertise),
+    _Pad      = 0,
+    {?OF_V10_MESSAGE_TYPE_PORT_MOD, ?OF_V10_PORT_MOD_PATTERN}.
+
+encode_stats_request(StatsRequestRec) ->
+    BodyRec = StatsRequestRec#of_v10_stats_request.body,
+    {Type, Body} = encode_stats_request_body(BodyRec),
+    _Flags = 0,
+    {?OF_V10_MESSAGE_TYPE_STATS_REQUEST, ?OF_V10_STATS_REQUEST_PATTERN}.
+
+encode_stats_request_body(BodyRec) ->
+    if
+        is_record(BodyRec, of_v10_desc_stats_request)      -> encode_desc_stats_request(BodyRec);
+        is_record(BodyRec, of_v10_flow_stats_request)      -> encode_flow_stats_request(BodyRec);
+        is_record(BodyRec, of_v10_aggregate_stats_request) -> encode_aggregate_stats_request(BodyRec);
+        is_record(BodyRec, of_v10_table_stats_request)     -> encode_table_stats_request(BodyRec);
+        is_record(BodyRec, of_v10_port_stats_request)      -> encode_port_stats_request(BodyRec);
+        is_record(BodyRec, of_v10_queue_stats_request)     -> encode_queue_stats_request(BodyRec);
+        is_record(BodyRec, of_v10_vendor_stats_request)    -> encode_vendor_stats_request(BodyRec)
+    end.
+
+encode_desc_stats_request(_DescStatsRequestRec) ->
+    {?OF_V10_STATS_TYPE_DESC, ?OF_V10_DESC_STATS_REQUEST_PATTERN}.
+
+encode_flow_stats_request(FlowStatsRequestRec) ->
+    #of_v10_flow_stats_request{match    = MatchRec, 
+                               table_id = TableId, 
+                               out_port = OutPort} = FlowStatsRequestRec,
+    Match = encode_flow_match(MatchRec),
+    _Pad  = 0,
+    {?OF_V10_STATS_TYPE_FLOW, ?OF_V10_FLOW_STATS_REQUEST_PATTERN}.
+
+encode_aggregate_stats_request(AggregateStatsRequestRec) ->
+    #of_v10_aggregate_stats_request{match    = MatchRec, 
+                                    table_id = TableId, 
+                                    out_port = OutPort} = AggregateStatsRequestRec,
+    Match = encode_flow_match(MatchRec),
+    _Pad  = 0,
+    {?OF_V10_STATS_TYPE_AGGREGATE, ?OF_V10_AGGREGATE_STATS_REQUEST_PATTERN}.
+
+encode_table_stats_request(_TableStatsRequestRec) ->
+    {?OF_V10_STATS_TYPE_TABLE, ?OF_V10_TABLE_STATS_REQUEST_PATTERN}.
+
+encode_port_stats_request(PortStatsRequestRec) ->
+    #of_v10_port_stats_request{port_no = PortNo} = PortStatsRequestRec,
+    _Pad = 0,
+    {?OF_V10_STATS_TYPE_PORT, ?OF_V10_PORT_STATS_REQUEST_PATTERN}.
+
+encode_queue_stats_request(QueueStatsRequestRec) ->
+    #of_v10_queue_stats_request{port_no  = PortNo,
+                                queue_id = QueueId} = QueueStatsRequestRec,
+    _Pad = 0,
+    {?OF_V10_STATS_TYPE_QUEUE, ?OF_V10_QUEUE_STATS_REQUEST_PATTERN}.
+
+encode_vendor_stats_request(VendorStatsRequestRec) ->
+    #of_v10_vendor_stats_request{vendor_id = VendorId,
+                                 body      = Body} = VendorStatsRequestRec,
+    {?OF_V10_STATS_TYPE_VENDOR, ?OF_V10_VENDOR_STATS_REQUEST_PATTERN}.
+
+encode_stats_reply(StatsReplyRec) ->
+    More         = encode_bool(StatsReplyRec#of_v10_stats_reply.more),
+    {Type, Body} = encode_stats_reply_body(StatsReplyRec#of_v10_stats_reply.body),
+    _Reserved    = 0,
+    {?OF_V10_MESSAGE_TYPE_STATS_REPLY, ?OF_V10_STATS_REPLY_PATTERN}.
+
+encode_stats_reply_body(BodyRec) ->
+    if
+        is_record(BodyRec, of_v10_desc_stats_reply)      -> encode_desc_stats_reply(BodyRec);
+        is_record(BodyRec, of_v10_flow_stats_reply)      -> encode_flow_stats_reply(BodyRec);
+        is_record(BodyRec, of_v10_aggregate_stats_reply) -> encode_aggregate_stats_reply(BodyRec);
+        is_record(BodyRec, of_v10_table_stats_reply)     -> encode_table_stats_reply(BodyRec);
+        is_record(BodyRec, of_v10_port_stats_reply)      -> encode_port_stats_reply(BodyRec);
+        is_record(BodyRec, of_v10_queue_stats_reply)     -> encode_queue_stats_reply(BodyRec);
+        is_record(BodyRec, of_v10_vendor_stats_reply)    -> encode_vendor_stats_reply(BodyRec)
+    end.
+
+encode_desc_stats_reply(DescStatsReplyRec) ->
+    MfrDesc   = encode_string(DescStatsReplyRec#of_v10_desc_stats_reply.mfr_desc, ?OF_V10_DESC_STR_LEN),
+    HwDesc    = encode_string(DescStatsReplyRec#of_v10_desc_stats_reply.hw_desc, ?OF_V10_DESC_STR_LEN),
+    SwDesc    = encode_string(DescStatsReplyRec#of_v10_desc_stats_reply.sw_desc, ?OF_V10_DESC_STR_LEN),
+    SerialNum = encode_string(DescStatsReplyRec#of_v10_desc_stats_reply.serial_num, ?OF_V10_SERIAL_NUM_LEN),
+    DpDesc    = encode_string(DescStatsReplyRec#of_v10_desc_stats_reply.dp_desc, ?OF_V10_DESC_STR_LEN),
+    {?OF_V10_STATS_TYPE_DESC, ?OF_V10_DESC_STATS_REPLY_PATTERN}.
+
+encode_flow_stats_reply(FlowStatsReplyRec) ->
+    #of_v10_flow_stats_reply{table_id      = TableId,
+                             match         = MatchRec,
+                             duration_sec  = DurationSec,
+                             duration_nsec = DurationNsec,
+                             priority      = Priority,
+                             idle_timeout  = IdleTimeout,
+                             hard_timeout  = HardTimeout,
+                             cookie        = Cookie,
+                             packet_count  = PacketCount,
+                             byte_count    = ByteCount,
+                             actions       = ActionsList} = FlowStatsReplyRec,
+    Match   = encode_flow_match(MatchRec),
+    Actions = encode_actions(ActionsList),
+    _Length = ?OF_V10_FLOW_STATS_REPLY_LEN_WITHOUT_ACTIONS + size(Actions),    %% TODO: Is this the right value?
+    _Pad1   = 0,
+    _Pad2   = 0,
+    {?OF_V10_STATS_TYPE_FLOW, ?OF_V10_FLOW_STATS_REPLY_PATTERN}.
+
+%% TODO: @@@ CONTINUE FROM HERE
+
+encode_aggregate_stats_reply(_AggregateStatsReplyRec) ->
+    {?OF_V10_STATS_TYPE_AGGREGATE, ?OF_V10_AGGREGATE_STATS_REPLY_PATTERN}.
+
+encode_table_stats_reply(_TableStatsReplyRec) ->
+    {?OF_V10_STATS_TYPE_TABLE, ?OF_V10_TABLE_STATS_REPLY_PATTERN}.
+
+encode_port_stats_reply(_PortStatsReplyRec) ->
+    {?OF_V10_STATS_TYPE_PORT, ?OF_V10_PORT_STATS_REPLY_PATTERN}.
+
+encode_queue_stats_reply(_QueueStatsReplyRec) ->
+    {?OF_V10_STATS_TYPE_QUEUE, ?OF_V10_QUEUE_STATS_REPLY_PATTERN}.
+
+encode_vendor_stats_reply(_VendorStatsReplyRec) ->
+    {?OF_V10_STATS_TYPE_VENDOR, ?OF_V10_VENDOR_STATS_REPLY_PATTERN}.
 
 %%
 %% Unit tests.
@@ -619,3 +747,55 @@ encode_flow_mod_test() ->
     ActualResult = encode_body(Rec),
     ExpectedResult = {?OF_V10_MESSAGE_TYPE_FLOW_MOD, of_v10_test_msgs:flow_mod_bin()},
     ?assertEqual(ExpectedResult, ActualResult).
+
+encode_port_mod_test() ->
+    Rec = of_v10_test_msgs:port_mod_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_PORT_MOD, of_v10_test_msgs:port_mod_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_stats_request_desc_test() ->
+    Rec = of_v10_test_msgs:stats_request_desc_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_STATS_REQUEST, of_v10_test_msgs:stats_request_desc_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_stats_request_flow_test() ->
+    Rec = of_v10_test_msgs:stats_request_flow_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_STATS_REQUEST, of_v10_test_msgs:stats_request_flow_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_stats_request_aggregate_test() ->
+    Rec = of_v10_test_msgs:stats_request_aggregate_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_STATS_REQUEST, of_v10_test_msgs:stats_request_aggregate_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_stats_request_table_test() ->
+    Rec = of_v10_test_msgs:stats_request_table_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_STATS_REQUEST, of_v10_test_msgs:stats_request_table_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_stats_request_port_test() ->
+    Rec = of_v10_test_msgs:stats_request_port_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_STATS_REQUEST, of_v10_test_msgs:stats_request_port_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_stats_request_queue_test() ->
+    Rec = of_v10_test_msgs:stats_request_queue_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_STATS_REQUEST, of_v10_test_msgs:stats_request_queue_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_stats_request_vendor_test() ->
+    Rec = of_v10_test_msgs:stats_request_vendor_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_STATS_REQUEST, of_v10_test_msgs:stats_request_vendor_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+
+
+
