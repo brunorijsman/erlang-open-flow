@@ -1037,7 +1037,7 @@ stats_reply_flow_bin() ->
     << ?OF_V10_STATS_TYPE_FLOW : 16,      %% Type
        0                       : 15,      %% Reserved
        0                       : 1,       %% More flag
-       88                      : 16,      %% Length of this entry
+       120                     : 16,      %% Length of this entry
        1                       : 8,       %% Table ID
        0                       : 8,       %% Padding
        MatchBin/binary,
@@ -1239,7 +1239,7 @@ queue_property_min_rate_rec() ->
     #of_v10_queue_property_min_rate{rate = 11}.
 
 queue_properties_rec() ->
-    [queue_property_min_rate_rec()].
+    [queue_property_min_rate_rec(), none].
 
 queue_rec() ->
     #of_v10_queue{queue_id = 1111,

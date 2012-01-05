@@ -250,6 +250,37 @@ encode_action_vendor(ActionRec) ->
     #of_v10_action_vendor{vendor = Vendor} = ActionRec,
     {?OF_V10_ACTION_TYPE_VENDOR, ?OF_V10_ACTION_VENDOR_PATTERN}.
 
+encode_queues(QueueList) ->
+    iolist_to_binary(lists:map(fun encode_queue/1, QueueList)).
+
+encode_queue(QueueRec) ->
+    #of_v10_queue{queue_id = QueueId, properties = PropertyList} = QueueRec,
+    Rest = encode_queue_properties(PropertyList),    %% TODO: rename rest to properties
+    Len  = size(Rest) + 8,   %% TODO: symbolic name
+    _Pad = 0,
+    ?OF_V10_QUEUES_PATTERN.
+
+encode_queue_properties(PropertyList) ->
+    iolist_to_binary(lists:map(fun encode_queue_property/1, PropertyList)).
+
+%% TODO: for consistency's sake also use a record for queue property none. Rename Property to PropertyRec.
+encode_queue_property(Property) ->
+    {Type, Rest} = if
+                       (Property == none)                                  -> encode_queue_property_none();
+                       is_record(Property, of_v10_queue_property_min_rate) -> encode_queue_property_min_rate(Property)
+                   end,
+    Len  = size(Rest) + 8,   %% TODO: symbolic name
+    _Pad = 0,
+    ?OF_V10_QUEUE_PROPERTIES_PATTERN.
+    
+encode_queue_property_none() ->
+    {?OF_V10_QUEUE_PROPERTY_TYPE_NONE, ?OF_V10_QUEUE_PROPERTY_NONE_PATTERN}.
+
+encode_queue_property_min_rate(PropertyRec) ->
+    #of_v10_queue_property_min_rate{rate = Rate} = PropertyRec,
+    _Pad = 0,
+    {?OF_V10_QUEUE_PROPERTY_TYPE_MIN_RATE, ?OF_V10_QUEUE_PROPERTY_MIN_RATE_PATTERN}.
+
 -spec encode_header(#of_v10_header{}) -> binary().
 encode_header(Header) ->
     #of_v10_header{version = Version, 
@@ -263,24 +294,28 @@ encode_header(Header) ->
 
 encode_body(BodyRec) ->
     if
-        is_record(BodyRec, of_v10_hello)                  -> encode_hello(BodyRec);
-        is_record(BodyRec, of_v10_error)                  -> encode_error(BodyRec);
-        is_record(BodyRec, of_v10_echo_request)           -> encode_echo_request(BodyRec);
-        is_record(BodyRec, of_v10_echo_reply)             -> encode_echo_reply(BodyRec);
-        is_record(BodyRec, of_v10_vendor)                 -> encode_vendor(BodyRec);
-        is_record(BodyRec, of_v10_features_request)       -> encode_features_request(BodyRec);
-        is_record(BodyRec, of_v10_features_reply)         -> encode_features_reply(BodyRec);
-        is_record(BodyRec, of_v10_get_config_request)     -> encode_get_config_request(BodyRec);
-        is_record(BodyRec, of_v10_get_config_reply)       -> encode_get_config_reply(BodyRec);
-        is_record(BodyRec, of_v10_set_config)             -> encode_set_config(BodyRec);
-        is_record(BodyRec, of_v10_packet_in)              -> encode_packet_in(BodyRec);
-        is_record(BodyRec, of_v10_flow_removed)           -> encode_flow_removed(BodyRec);
-        is_record(BodyRec, of_v10_port_status)            -> encode_port_status(BodyRec);
-        is_record(BodyRec, of_v10_packet_out)             -> encode_packet_out(BodyRec);
-        is_record(BodyRec, of_v10_flow_mod)               -> encode_flow_mod(BodyRec);
-        is_record(BodyRec, of_v10_port_mod)               -> encode_port_mod(BodyRec);
-        is_record(BodyRec, of_v10_stats_request)          -> encode_stats_request(BodyRec);
-        is_record(BodyRec, of_v10_stats_reply)            -> encode_stats_reply(BodyRec)
+        is_record(BodyRec, of_v10_hello)                    -> encode_hello(BodyRec);
+        is_record(BodyRec, of_v10_error)                    -> encode_error(BodyRec);
+        is_record(BodyRec, of_v10_echo_request)             -> encode_echo_request(BodyRec);
+        is_record(BodyRec, of_v10_echo_reply)               -> encode_echo_reply(BodyRec);
+        is_record(BodyRec, of_v10_vendor)                   -> encode_vendor(BodyRec);
+        is_record(BodyRec, of_v10_features_request)         -> encode_features_request(BodyRec);
+        is_record(BodyRec, of_v10_features_reply)           -> encode_features_reply(BodyRec);
+        is_record(BodyRec, of_v10_get_config_request)       -> encode_get_config_request(BodyRec);
+        is_record(BodyRec, of_v10_get_config_reply)         -> encode_get_config_reply(BodyRec);
+        is_record(BodyRec, of_v10_set_config)               -> encode_set_config(BodyRec);
+        is_record(BodyRec, of_v10_packet_in)                -> encode_packet_in(BodyRec);
+        is_record(BodyRec, of_v10_flow_removed)             -> encode_flow_removed(BodyRec);
+        is_record(BodyRec, of_v10_port_status)              -> encode_port_status(BodyRec);
+        is_record(BodyRec, of_v10_packet_out)               -> encode_packet_out(BodyRec);
+        is_record(BodyRec, of_v10_flow_mod)                 -> encode_flow_mod(BodyRec);
+        is_record(BodyRec, of_v10_port_mod)                 -> encode_port_mod(BodyRec);
+        is_record(BodyRec, of_v10_stats_request)            -> encode_stats_request(BodyRec);
+        is_record(BodyRec, of_v10_stats_reply)              -> encode_stats_reply(BodyRec);
+        is_record(BodyRec, of_v10_barrier_request)          -> encode_barrier_request(BodyRec);
+        is_record(BodyRec, of_v10_barrier_reply)            -> encode_barrier_reply(BodyRec);
+        is_record(BodyRec, of_v10_queue_get_config_request) -> encode_queue_get_config_request(BodyRec);
+        is_record(BodyRec, of_v10_queue_get_config_reply)   -> encode_queue_get_config_reply(BodyRec)
     end.
 
 encode_hello(_HelloRec) ->
@@ -491,22 +526,72 @@ encode_flow_stats_reply(FlowStatsReplyRec) ->
     _Pad2   = 0,
     {?OF_V10_STATS_TYPE_FLOW, ?OF_V10_FLOW_STATS_REPLY_PATTERN}.
 
-%% TODO: @@@ CONTINUE FROM HERE
-
-encode_aggregate_stats_reply(_AggregateStatsReplyRec) ->
+encode_aggregate_stats_reply(AggregateStatsReplyRec) ->
+    #of_v10_aggregate_stats_reply{packet_count = PacketCount,
+                                  byte_count   = ByteCount,
+                                  flow_count   = FlowCount} = AggregateStatsReplyRec,
+    _Pad = 0,
     {?OF_V10_STATS_TYPE_AGGREGATE, ?OF_V10_AGGREGATE_STATS_REPLY_PATTERN}.
 
-encode_table_stats_reply(_TableStatsReplyRec) ->
+encode_table_stats_reply(TableStatsReplyRec) ->
+    #of_v10_table_stats_reply{table_id      = TableId,
+                              max_entries   = MaxEntries,
+                              active_count  = ActiveCount,
+                              lookup_count  = LookupCount,
+                              matched_count = MatchedCount} = TableStatsReplyRec,
+    Name      = encode_string(TableStatsReplyRec#of_v10_table_stats_reply.name, ?OF_V10_MAX_TABLE_NAME_LEN),
+    Wildcards = encode_flow_match_wildcards(TableStatsReplyRec#of_v10_table_stats_reply.wildcards),
+    _Pad      = 0,
     {?OF_V10_STATS_TYPE_TABLE, ?OF_V10_TABLE_STATS_REPLY_PATTERN}.
 
-encode_port_stats_reply(_PortStatsReplyRec) ->
+encode_port_stats_reply(PortStatsReplyRec) ->
+    #of_v10_port_stats_reply{port_no      = PortNo,
+                             rx_packets   = RxPackets,
+                             tx_packets   = TxPackets,
+                             rx_bytes     = RxBytes,
+                             tx_bytes     = TxBytes,
+                             rx_dropped   = RxDropped,
+                             tx_dropped   = TxDropped,
+                             rx_errors    = RxErrors,
+                             tx_errors    = TxErrors,
+                             rx_frame_err = RxFrameErr,
+                             tx_over_err  = TxOverErr,
+                             rx_crc_err   = RxCrcErr,
+                             collisions   = Collisions} = PortStatsReplyRec,
+    _Pad = 0,
     {?OF_V10_STATS_TYPE_PORT, ?OF_V10_PORT_STATS_REPLY_PATTERN}.
 
-encode_queue_stats_reply(_QueueStatsReplyRec) ->
+encode_queue_stats_reply(QueueStatsReplyRec) ->
+    #of_v10_queue_stats_reply{port_no    = PortNo,
+                              queue_id   = QueueId,
+                              tx_bytes   = TxBytes,
+                              tx_packets = TxPackets,
+                              tx_errors  = TxErrors} = QueueStatsReplyRec,
+    _Pad = 0,
     {?OF_V10_STATS_TYPE_QUEUE, ?OF_V10_QUEUE_STATS_REPLY_PATTERN}.
 
-encode_vendor_stats_reply(_VendorStatsReplyRec) ->
+encode_vendor_stats_reply(VendorStatsReplyRec) ->
+    #of_v10_vendor_stats_reply{vendor_id = VendorId, 
+                               body      = Body} = VendorStatsReplyRec,
     {?OF_V10_STATS_TYPE_VENDOR, ?OF_V10_VENDOR_STATS_REPLY_PATTERN}.
+
+encode_barrier_request(_BarrierRequestRec) ->
+    {?OF_V10_MESSAGE_TYPE_BARRIER_REQUEST, ?OF_V10_BARRIER_REQUEST_PATTERN}.
+
+encode_barrier_reply(_BarrierReplyRec) ->
+    {?OF_V10_MESSAGE_TYPE_BARRIER_REPLY, ?OF_V10_BARRIER_REPLY_PATTERN}.
+
+encode_queue_get_config_request(QueueGetConfigRequestRec) ->
+    #of_v10_queue_get_config_request{port = Port} = QueueGetConfigRequestRec,
+    _Pad = 0,
+    {?OF_V10_MESSAGE_TYPE_QUEUE_GET_CONFIG_REQUEST, ?OF_V10_QUEUE_GET_CONFIG_REQUEST_PATTERN}.
+
+encode_queue_get_config_reply(QueueGetConfigReplyRec) ->
+    #of_v10_queue_get_config_reply{port   = Port,
+                                   queues = QueueList} = QueueGetConfigReplyRec,
+    Queues = encode_queues(QueueList),
+    _Pad   = 0,
+    {?OF_V10_MESSAGE_TYPE_QUEUE_GET_CONFIG_REPLY, ?OF_V10_QUEUE_GET_CONFIG_REPLY_PATTERN}.
 
 %%
 %% Unit tests.
@@ -796,6 +881,68 @@ encode_stats_request_vendor_test() ->
     ExpectedResult = {?OF_V10_MESSAGE_TYPE_STATS_REQUEST, of_v10_test_msgs:stats_request_vendor_bin()},
     ?assertEqual(ExpectedResult, ActualResult).
 
+encode_stats_reply_desc_test() ->
+    Rec = of_v10_test_msgs:stats_reply_desc_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_STATS_REPLY, of_v10_test_msgs:stats_reply_desc_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
 
+encode_stats_reply_flow_test() ->
+    Rec = of_v10_test_msgs:stats_reply_flow_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_STATS_REPLY, of_v10_test_msgs:stats_reply_flow_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
 
+encode_stats_reply_aggregate_test() ->
+    Rec = of_v10_test_msgs:stats_reply_aggregate_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_STATS_REPLY, of_v10_test_msgs:stats_reply_aggregate_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
 
+encode_stats_reply_table_test() ->
+    Rec = of_v10_test_msgs:stats_reply_table_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_STATS_REPLY, of_v10_test_msgs:stats_reply_table_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_stats_reply_port_test() ->
+    Rec = of_v10_test_msgs:stats_reply_port_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_STATS_REPLY, of_v10_test_msgs:stats_reply_port_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_stats_reply_queue_test() ->
+    Rec = of_v10_test_msgs:stats_reply_queue_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_STATS_REPLY, of_v10_test_msgs:stats_reply_queue_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_stats_reply_vendor_test() ->
+    Rec = of_v10_test_msgs:stats_reply_vendor_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_STATS_REPLY, of_v10_test_msgs:stats_reply_vendor_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_barrier_request_test() ->
+    Rec = of_v10_test_msgs:barrier_request_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_BARRIER_REQUEST, of_v10_test_msgs:barrier_request_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_barrier_reply_test() ->
+    Rec = of_v10_test_msgs:barrier_reply_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_BARRIER_REPLY, of_v10_test_msgs:barrier_reply_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_queue_get_config_request_test() ->
+    Rec = of_v10_test_msgs:queue_get_config_request_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_QUEUE_GET_CONFIG_REQUEST, of_v10_test_msgs:queue_get_config_request_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).
+
+encode_queue_get_config_reply_test() ->
+    Rec = of_v10_test_msgs:queue_get_config_reply_rec(),
+    ActualResult = encode_body(Rec),
+    ExpectedResult = {?OF_V10_MESSAGE_TYPE_QUEUE_GET_CONFIG_REPLY, of_v10_test_msgs:queue_get_config_reply_bin()},
+    ?assertEqual(ExpectedResult, ActualResult).

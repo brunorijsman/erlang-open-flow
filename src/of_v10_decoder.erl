@@ -506,7 +506,7 @@ decode_queues(QueuesBin) ->
 decode_queues(<< >>, QueueRecs) ->
     lists:reverse(QueueRecs);
 decode_queues(?OF_V10_QUEUES_PATTERN, QueueRecs) ->
-    PropertiesLen = Len - 8,
+    PropertiesLen = Len - 8,   %% TODO: symbolic name
     << Properties : PropertiesLen/binary, NewRest/binary >> = Rest,
     PropertyRecs = decode_queue_properties(Properties),
     QueueRec = #of_v10_queue{queue_id = QueueId, properties = PropertyRecs},
@@ -520,12 +520,12 @@ decode_queue_properties(PropertiesBin) ->
 decode_queue_properties(<< >>, PropertyRecs) ->
     lists:reverse(PropertyRecs);
 decode_queue_properties(?OF_V10_QUEUE_PROPERTIES_PATTERN, PropertyRecs) ->
-    PropertyLen = Len - 8,
+    PropertyLen = Len - 8,   %% TODO: Symbolic name
     << PropertyBin : PropertyLen/binary, NewRest/binary >> = Rest,
     PropertyRec = decode_queue_property(Type, PropertyBin),
     case PropertyRec of
         none ->
-            decode_queue_properties(NewRest, PropertyRecs);
+            decode_queue_properties(NewRest, [none | PropertyRecs]);
         _ ->
             decode_queue_properties(NewRest, [PropertyRec | PropertyRecs])
     end.

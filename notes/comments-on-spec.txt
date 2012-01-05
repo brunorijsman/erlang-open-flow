@@ -1,7 +1,7 @@
 VERSION 1.0
 ===========
 
-[Page 32] Why does ofp_flow_stats have a Length field? What is "this entry"? The length of the ofp_flow_stats field can be derived from the length in the message header.
+[Page 32] Why does ofp_flow_stats have a Length field? It seems that it is not needed: the length of the ofp_flow_stats field can be derived from the length in the message header. What is "this entry" (i.e. what, exactly, is this the length of)? 
 
 [Page 35] The value of OFPQ_ALL is not defined anywhere in the spec.
 
