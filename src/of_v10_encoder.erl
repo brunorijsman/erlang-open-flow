@@ -1,7 +1,5 @@
 %% @author Bruno Rijsman <brunorijsman@hotmail.com>
-%% @copyright 2011 Bruno Rijsman
-
-%% TODO: Replace 2011 with 2012 everywhere
+%% @copyright 2012 Bruno Rijsman
 
 -module(of_v10_encoder).
 

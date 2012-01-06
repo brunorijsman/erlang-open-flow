@@ -1,5 +1,5 @@
 %% @author Bruno Rijsman <brunorijsman@hotmail.com>
-%% @copyright 2011 Bruno Rijsman
+%% @copyright 2012 Bruno Rijsman
 %%
 
 -module(of_v10_test_msgs).
