@@ -7,6 +7,9 @@
 
 -behavior(gen_server).
 
+%% TODO: Do we really want separate start_link and connect?
+%% TODO: Do we really want separate close and stop?
+
 -export([start_link/0,
          stop/1,
          connect/3,
@@ -26,7 +29,6 @@
 -include_lib("../include/of_v10.hrl").
 
 -record(of_connection_state, {
-          state,
           receive_state,
           receive_need_len,
           received_data,
@@ -64,7 +66,6 @@ send(Pid, Xid, MessageRec) ->
 
 init([ReceiverPid]) ->
     State = #of_connection_state{
-      state            = closed,
       receive_state    = undefined,
       receive_need_len = undefined,
       received_data    = undefined,
@@ -77,7 +78,7 @@ handle_call(stop, _From, State) ->
     {stop, normal, stopped, State};
 
 handle_call({connect, _Address, _Port}, _From, State) 
-  when State#of_connection_state.state == connected ->
+  when State#of_connection_state.socket /= undefined ->
     {reply, {error, already_connected}, State};
 
 handle_call({connect, Address, Port}, _From, State) ->
@@ -85,7 +86,6 @@ handle_call({connect, Address, Port}, _From, State) ->
     case gen_tcp:connect(Address, Port, Options) of
         {ok, Socket} ->
             NewState = State#of_connection_state{
-                         state            = connected,
                          receive_state    = header,
                          receive_need_len = ?OF_HEADER_LEN,
                          received_data    = <<>>,
@@ -96,14 +96,13 @@ handle_call({connect, Address, Port}, _From, State) ->
     end;
 
 handle_call(close, _From, State) 
-  when State#of_connection_state.state == closed ->
+  when State#of_connection_state.socket == undefined ->
     {reply, ok, State};
 
 handle_call(close, _From, State) ->
     #of_connection_state{socket = Socket} = State,
     ok = gen_tcp:close(Socket),
     NewState = State#of_connection_state{
-                 state            = closed,
                  receive_state    = undefined,
                  receive_need_len = undefined,
                  received_data    = undefined,
@@ -123,8 +122,7 @@ handle_cast(_Cast, State) ->
     {noreply, State}.
 
 handle_info({tcp, Socket, Data}, State)
-  when State#of_connection_state.state == connected andalso 
-       State#of_connection_state.socket == Socket ->
+  when State#of_connection_state.socket == Socket ->
     {noreply, receive_data(State, Data)};
 
 handle_info({tcp, _Socket, _Data}, State) ->
