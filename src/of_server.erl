@@ -48,6 +48,7 @@ stop(Pid) ->
 %%
 
 init(State) ->
+    process_flag(trap_exit, true),
     ServerPid = self(),
     ListenSocket = State#of_server_state.listen_socket,
     AcceptorPid = spawn_link(fun() -> accept_loop(ServerPid, ListenSocket) end),
@@ -64,17 +65,20 @@ handle_call(stop, _From, State) ->
     {stop, normal, stopped, State}.
 
 handle_cast({accepted, Socket}, State) ->
-    io:format("New connection!~n"),
+    {ok, {Address, Port}} = inet:peername(Socket),
+    io:format("OpenFlow incoming connection accepted from ~w:~w~n", [Address, Port]),
     HandleConnection = State#of_server_state.handle_connection,
-    HandleConnection(Socket),
+    ok = HandleConnection(Socket),
+    {noreply, State};
+
+handle_cast({'EXIT', _From, _Reason}, State) ->
+    %% @@@ TODO
     {noreply, State};
 
 handle_cast(_Cast, State) ->
-    %% TODO: Is ignoring unexpected casts the right thing to do?
     {noreply, State}.
 
 handle_info(_Info, State) ->
-    %% TODO: Is ignoring unexpected infos the right thing to do?
     {noreply, State}.
 
 terminate(_Reason, _State) ->
@@ -91,7 +95,7 @@ initial_state(Args) ->
     State1 = #of_server_state{listen_port       = ?DEFAULT_LISTEN_PORT,
                               listen_socket     = undefined,
                               acceptor_pid      = undefined,
-                              handle_connection = undefind},
+                              handle_connection = fun handle_connection/1},
     State2 = parse_args(Args, State1),
     TcpOptions = [binary, 
                   {packet, raw}, 
@@ -102,11 +106,12 @@ initial_state(Args) ->
     ListenPort = State2#of_server_state.listen_port,
     case gen_tcp:listen(ListenPort, TcpOptions) of
         {ok, ListenSocket} ->
+            io:format("OpenFlow server listening on port ~w~n", [ListenPort]),
             State2#of_server_state{listen_socket = ListenSocket};
         {error, Reason} ->
             erlang:error(Reason)
     end.
-    
+
 parse_args(Args, State) ->
     lists:foldl(fun parse_arg/2, State, Args).
 
@@ -119,10 +124,14 @@ parse_arg({listen_port, ListenPort}, State) ->
 parse_arg(Arg, _State) ->
     erlang:error({unrecognized_attribute, Arg}).
 
+handle_connection(Socket) ->
+    %% Don't crash if switch doesn't start -- log something instead
+    {ok, _SwitchPid} = of_switch:start_link([{socket, Socket}]),
+    ok.
+    
 accept_loop(ServerPid, ListenSocket) ->
     case gen_tcp:accept(ListenSocket) of
         {ok, Socket} ->
-            io:format("cast ServerPid=~w~n", [ServerPid]),   %% @@@
             gen_server:cast(ServerPid, {accepted, Socket}),
             accept_loop(ServerPid, ListenSocket);
         {error, Reason} ->
@@ -134,7 +143,8 @@ accept_loop(ServerPid, ListenSocket) ->
 %%
 
 test_handle_connection(Socket, TestPid) ->
-    TestPid ! {connection, Socket}.
+    TestPid ! {connection, Socket},
+    ok.
 
 start_link_and_stop_test() ->
     StartLinkResult = start_link([]),

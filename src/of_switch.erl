@@ -5,7 +5,7 @@
 
 -behavior(gen_server).
 
--export([start_link/0,
+-export([start_link/1,
          stop/1]).
 
 -export([init/1,
@@ -25,8 +25,19 @@
 %% Exported functions.
 %%
 
-start_link() ->
-    gen_server:start_link(?MODULE, [], []).
+%% TODO: Is it the right thing to do to start_link the connection in the context of the
+%% caller, or should we postpone this to the init function? Certainly checking the
+%% correctnes of the Args should be done in the caller's context. The current code looks
+%% hacky -- change it to the latter option.
+
+start_link(Args) ->
+    try
+        State = initial_state(Args),
+        gen_server:start_link(?MODULE, [State], [])
+    catch
+        error:Reason ->
+            {error, Reason}
+    end.
 
 stop(Pid) ->
     gen_server:call(Pid, stop).
@@ -35,9 +46,14 @@ stop(Pid) ->
 %% gen_server callbacks.
 %%
 
-init([]) ->
-    State1 = #of_switch_state{connection_pid = undefined},
-    State2 = connect(State1),
+init([State1]) ->
+    ConnectionPid = State1#of_switch_state.connection_pid,
+    State2 = case ConnectionPid of
+                 undefined ->
+                     State1;
+                 _ ->
+                     send_hello(State1)
+             end,
     {ok, State2}.
 
 handle_call(stop, _From, State) ->
@@ -66,13 +82,35 @@ code_change(_OldVersion, State, _Extra) ->
 %% Internal functions.
 %%
 
-connect(State) ->
-    {ok, Pid} = of_connection:start_link(),
-    ok = of_connection:connect(Pid, {127, 0, 0, 1}, 6633),
-    State1 = State#of_switch_state{connection_pid = Pid},
-    switch_connected(State1).
+initial_state(Args) ->
+    State = #of_switch_state{connection_pid = undefined},
+    parse_args(Args, State).
 
-switch_connected(State) ->
+parse_args(Args, State) ->
+    lists:foldl(fun parse_arg/2, State, Args).
+
+parse_arg({socket, Socket}, State)
+  when State#of_switch_state.connection_pid == undefined ->
+    case of_connection:start_link([{socket, Socket}]) of
+        {ok, Pid} ->
+            State#of_switch_state{connection_pid = Pid};
+        {error, Reason} ->
+            erlang:error(Reason)
+    end;
+
+parse_arg({socket, _Socket}, _State) ->
+    erlang:error(multiple_arg_socket);
+
+parse_arg(Arg, _State) ->
+    erlang:error({unrecognized_attribute, Arg}).
+
+%% connect(State) ->
+%%     {ok, Pid} = of_connection:start_link(),
+%%     ok = of_connection:connect(Pid, {127, 0, 0, 1}, 6633),
+%%     State1 = State#of_switch_state{connection_pid = Pid},
+%%     switch_connected(State1).
+
+send_hello(State) ->
     HelloMessage = #of_v10_hello{},
     ConnectionPid = State#of_switch_state.connection_pid,
     Xid = 0, %% TODO: Xid allocation

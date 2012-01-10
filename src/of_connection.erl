@@ -1,8 +1,6 @@
 %% @author Bruno Rijsman <brunorijsman@hotmail.com>
 %% @copyright 2012 Bruno Rijsman
 
-%% TODO: Support both v1.0 and v1.1
-
 -module(of_connection).
 
 -behavior(gen_server).
@@ -10,7 +8,7 @@
 %% TODO: Do we really want separate start_link and connect?
 %% TODO: Do we really want separate close and stop?
 
--export([start_link/0,
+-export([start_link/1,
          stop/1,
          connect/3,
          close/1,
@@ -29,25 +27,29 @@
 -include_lib("../include/of_v10.hrl").
 
 -record(of_connection_state, {
+          socket,
+          direction,
           receive_state,
           receive_need_len,
           received_data,
           received_header,
-          receiver_pid,
-          socket}).
+          receiver_pid}).
 
 %% TODO: State (receive data) needs to be updated when connect or close
-%% TODO: add specs everywhere; avoid generic term()
 
 %%
 %% Exported functions.
 %%
 
--spec start_link() -> term().   
-start_link() ->
-    gen_server:start_link(?MODULE, [self()], []).
+start_link(Args) ->
+    try
+        State = initial_state(Args),
+        gen_server:start_link(?MODULE, [State], [])
+    catch
+        error:Reason ->
+            {error, Reason}
+    end.
 
--spec stop(pid()) -> term().
 stop(Pid) ->
     gen_server:call(Pid, stop).
 
@@ -64,14 +66,16 @@ send(Pid, Xid, MessageRec) ->
 %% gen_server callbacks.
 %%
 
-init([ReceiverPid]) ->
-    State = #of_connection_state{
-      receive_state    = undefined,
-      receive_need_len = undefined,
-      received_data    = undefined,
-      received_header  = undefined,
-      receiver_pid     = ReceiverPid,
-      socket           = undefined},
+init([State]) ->
+    Socket = State#of_connection_state.socket,
+    io:format("Connection init Socket=~w!!!~n", [Socket]),  %% @@@
+    case Socket of
+        undefined ->
+            do_nothing;
+        _ ->
+            ok = inet:setopts(Socket, [{active, once}]),
+            io:format("Connection socket activated!!!~n")  %% @@@
+    end,
     {ok, State}.
 
 handle_call(stop, _From, State) ->
@@ -86,10 +90,11 @@ handle_call({connect, Address, Port}, _From, State) ->
     case gen_tcp:connect(Address, Port, Options) of
         {ok, Socket} ->
             NewState = State#of_connection_state{
+                         socket           = Socket,
+                         direction        = outgoing,
                          receive_state    = header,
                          receive_need_len = ?OF_HEADER_LEN,
-                         received_data    = <<>>,
-                         socket           = Socket},
+                         received_data    = <<>>},
             {reply, ok, NewState};
         {error, Reason} ->
             {reply, {error, Reason}, State}
@@ -103,10 +108,11 @@ handle_call(close, _From, State) ->
     #of_connection_state{socket = Socket} = State,
     ok = gen_tcp:close(Socket),
     NewState = State#of_connection_state{
+                 socket           = undefined,
+                 direction        = undefined,
                  receive_state    = undefined,
                  receive_need_len = undefined,
-                 received_data    = undefined,
-                 socket           = undefined},
+                 received_data    = undefined},
     {reply, ok, NewState};
 
 handle_call({send, Xid, MessageRec}, _From, State) ->
@@ -140,6 +146,33 @@ code_change(_OldVersion, State, _Extra) ->
 %%
 %% Internal functions.
 %%
+
+initial_state(Args) ->
+    State = #of_connection_state{socket           = undefined,
+                                 direction        = undefined,
+                                 receive_state    = undefined,
+                                 receive_need_len = undefined,
+                                 received_data    = undefined,
+                                 received_header  = undefined,
+                                 receiver_pid     = self()},
+    parse_args(Args, State).
+
+parse_args(Args, State) ->
+    lists:foldl(fun parse_arg/2, State, Args).
+
+parse_arg({socket, Socket}, State)
+  when State#of_connection_state.socket == undefined ->
+    State#of_connection_state{socket           = Socket,
+                              direction        = incoming,
+                              receive_state    = header,
+                              receive_need_len = ?OF_HEADER_LEN,
+                              received_data    = <<>>};
+
+parse_arg({socket, _Socket}, _State) ->
+    erlang:error(multiple_arg_socket);
+
+parse_arg(Arg, _State) ->
+    erlang:error({unrecognized_attribute, Arg}).
 
 receive_data(State, Data) ->
     io:format("OldState = ~w~n", [State]),
@@ -188,10 +221,8 @@ consume_header(State, HeaderBin) ->
                               receive_need_len = BodyLength,
                               received_header  = HeaderRec}.
 
-
 %% TODO: Implement this
 %% TODO: Send decoded message to receiver pid
-
 
 consume_body(State, BodyBin) ->
     io:format("consume_body State = ~w~n", [State]),
@@ -234,33 +265,33 @@ echo_server_loop(Socket) ->
     end.
                 
 start_and_stop_test() ->
-    {ok, Pid} = start_link(),
+    {ok, Pid} = start_link([]),
     ?assert(is_process_alive(Pid)),
     stopped = stop(Pid),
     ?assert(not is_process_alive(Pid)).
  
 connect_and_close_test() ->
     {ok, Port} = echo_server_start(),
-    {ok, Pid} = start_link(),
+    {ok, Pid} = start_link([]),
     ok = connect(Pid, "localhost", Port),
     ok = close(Pid),
     stopped = stop(Pid).
 
 connect_already_connected_test() ->
     {ok, Port} = echo_server_start(),
-    {ok, Pid} = start_link(),
+    {ok, Pid} = start_link([]),
     ok = connect(Pid, "localhost", Port),
     {error, already_connected} = connect(Pid, "localhost", Port),
     ok = close(Pid),
     stopped = stop(Pid).
 
 connect_no_server_test() ->
-    {ok, Pid} = start_link(),
+    {ok, Pid} = start_link([]),
     UnusedPort = 106,
     {error, econnrefused} = connect(Pid, "localhost", UnusedPort),
     stopped = stop(Pid).
     
 close_not_connected_test() ->
-    {ok, Pid} = start_link(),
+    {ok, Pid} = start_link([]),
     ok = close(Pid),
     stopped = stop(Pid).
