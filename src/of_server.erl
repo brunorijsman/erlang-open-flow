@@ -128,12 +128,14 @@ parse_arg(Arg, _State) ->
 
 handle_connection(Socket) ->
     %% Don't crash if switch doesn't start -- log something instead
-    {ok, _SwitchPid} = of_switch:start_link([{socket, Socket}]),
+    {ok, SwitchPid} = of_switch:start_link(),
+    ok = of_switch:accept(SwitchPid, Socket),
     ok.
     
 accept_loop(ServerPid, ListenSocket) ->
     case gen_tcp:accept(ListenSocket) of
         {ok, Socket} ->
+            ok = gen_tcp:controlling_process(Socket, ServerPid),
             gen_server:cast(ServerPid, {accepted, Socket}),
             accept_loop(ServerPid, ListenSocket);
         {error, Reason} ->

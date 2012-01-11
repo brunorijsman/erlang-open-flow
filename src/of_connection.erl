@@ -5,12 +5,10 @@
 
 -behavior(gen_server).
 
-%% TODO: Do we really want separate start_link and connect?
-%% TODO: Do we really want separate close and stop?
-
--export([start_link/1,
+-export([start_link/0,
          stop/1,
          connect/3,
+         accept/2,
          close/1,
          send/3]).
 
@@ -41,41 +39,38 @@
 %% Exported functions.
 %%
 
-start_link(Args) ->
-    try
-        State = initial_state(Args),
-        gen_server:start_link(?MODULE, [State], [])
-    catch
-        error:Reason ->
-            {error, Reason}
-    end.
+start_link() ->
+    gen_server:start_link(?MODULE, [], []).
 
 stop(Pid) ->
     gen_server:call(Pid, stop).
 
-connect(Pid, Address, Port) ->
-    gen_server:call(Pid, {connect, Address, Port}).
+connect(Pid, IpAddress, TcpPort) ->
+    gen_server:call(Pid, {connect, IpAddress, TcpPort}).
+
+accept(Pid, Socket) ->
+    ok = gen_tcp:controlling_process(Socket, Pid),
+    gen_server:call(Pid, {accept, Socket}).
 
 close(Pid) ->
     gen_server:call(Pid, close).
 
-send(Pid, Xid, MessageRec) ->
-    gen_server:call(Pid, {send, Xid, MessageRec}).
+send(Pid, Xid, Message) ->
+    gen_server:call(Pid, {send, Xid, Message}).
 
 %%                 
 %% gen_server callbacks.
 %%
 
-init([State]) ->
-    Socket = State#of_connection_state.socket,
-    io:format("of_connection: connection init Socket=~w~n", [Socket]),  %% @@@
-    case Socket of
-        undefined ->
-            do_nothing;
-        _ ->
-            ok = inet:setopts(Socket, [{active, once}]),
-            io:format("of_connection: connection socket activated~n")  %% @@@
-    end,
+init([]) ->
+    State = #of_connection_state{
+      socket           = undefined,
+      direction        = undefined,
+      receive_state    = undefined,
+      receive_need_len = undefined,
+      received_data    = undefined,
+      received_header  = undefined,
+      receiver_pid     = undefined},
     {ok, State}.
 
 handle_call(stop, _From, State) ->
@@ -85,20 +80,38 @@ handle_call({connect, _Address, _Port}, _From, State)
   when State#of_connection_state.socket /= undefined ->
     {reply, {error, already_connected}, State};
 
-handle_call({connect, Address, Port}, _From, State) ->
+handle_call({connect, Address, Port}, From, State) ->
     Options = [binary, {active, once}],
     case gen_tcp:connect(Address, Port, Options) of
         {ok, Socket} ->
-            NewState = State#of_connection_state{
-                         socket           = Socket,
-                         direction        = outgoing,
-                         receive_state    = header,
-                         receive_need_len = ?OF_HEADER_LEN,
-                         received_data    = <<>>},
-            {reply, ok, NewState};
+            {FromPid, _FromTag} = From,
+            State1 = State#of_connection_state{
+                       socket           = Socket,
+                       direction        = outgoing,
+                       receive_state    = header,
+                       receive_need_len = ?OF_HEADER_LEN,
+                       received_data    = <<>>,
+                       receiver_pid     = FromPid},
+            {reply, ok, State1};
         {error, Reason} ->
             {reply, {error, Reason}, State}
     end;
+
+handle_call({accept, _Socket}, _From, State) 
+  when State#of_connection_state.socket /= undefined ->
+    {reply, {error, already_connected}, State};
+
+handle_call({accept, Socket}, From, State) ->
+    ok = inet:setopts(Socket, [{active, once}]),
+    {FromPid, _FromTag} = From,
+    State1 = State#of_connection_state{
+               socket           = Socket,
+               direction        = incoming,
+               receive_state    = header,
+               receive_need_len = ?OF_HEADER_LEN,
+               received_data    = <<>>,
+               receiver_pid     = FromPid},
+    {reply, ok, State1};
 
 handle_call(close, _From, State) 
   when State#of_connection_state.socket == undefined ->
@@ -107,13 +120,13 @@ handle_call(close, _From, State)
 handle_call(close, _From, State) ->
     #of_connection_state{socket = Socket} = State,
     ok = gen_tcp:close(Socket),
-    NewState = State#of_connection_state{
-                 socket           = undefined,
-                 direction        = undefined,
-                 receive_state    = undefined,
-                 receive_need_len = undefined,
-                 received_data    = undefined},
-    {reply, ok, NewState};
+    State1 = State#of_connection_state{
+               socket           = undefined,
+               direction        = undefined,
+               receive_state    = undefined,
+               receive_need_len = undefined,
+               received_data    = undefined},
+    {reply, ok, State1};
 
 handle_call({send, Xid, MessageRec}, _From, State) ->
     io:format("of_connection: send xid=~w message=~w~n", [Xid, MessageRec]),
@@ -130,7 +143,7 @@ handle_cast(_Cast, State) ->
 
 handle_info({tcp, Socket, Data}, State)
   when State#of_connection_state.socket == Socket ->
-    {noreply, receive_data(State, Data)};
+    {noreply, receive_data(Data, State)};
 
 handle_info({tcp, _Socket, _Data}, State) ->
     {noreply, State};
@@ -148,43 +161,16 @@ code_change(_OldVersion, State, _Extra) ->
 %% Internal functions.
 %%
 
-initial_state(Args) ->
-    State = #of_connection_state{socket           = undefined,
-                                 direction        = undefined,
-                                 receive_state    = undefined,
-                                 receive_need_len = undefined,
-                                 received_data    = undefined,
-                                 received_header  = undefined,
-                                 receiver_pid     = self()},
-    parse_args(Args, State).
-
-parse_args(Args, State) ->
-    lists:foldl(fun parse_arg/2, State, Args).
-
-parse_arg({socket, Socket}, State)
-  when State#of_connection_state.socket == undefined ->
-    State#of_connection_state{socket           = Socket,
-                              direction        = incoming,
-                              receive_state    = header,
-                              receive_need_len = ?OF_HEADER_LEN,
-                              received_data    = <<>>};
-
-parse_arg({socket, _Socket}, _State) ->
-    erlang:error(multiple_arg_socket);
-
-parse_arg(Arg, _State) ->
-    erlang:error({unrecognized_attribute, Arg}).
-
-receive_data(State, Data) ->
+receive_data(Data, State) ->
     io:format("OldState = ~w~n", [State]),
     Socket = State#of_connection_state.socket,
     ok = inet:setopts(Socket, [{active, once}]),
-    NewState = append_data(State, Data),
+    NewState = append_data(Data, State),
     io:format("Received ~w bytes~n", [byte_size(NewState#of_connection_state.received_data)]),
     io:format("NewState = ~w~n", [NewState]),
     consume_data(NewState).
 
-append_data(State, Data) ->
+append_data(Data, State) ->
     OldReceivedData = State#of_connection_state.received_data,
     NewReceivedData = <<OldReceivedData/binary, Data/binary>>,
     State#of_connection_state{received_data = NewReceivedData}.
@@ -198,9 +184,9 @@ consume_data(#of_connection_state{receive_state    = ReceiveState,
     NewState1 = State#of_connection_state{received_data = RestData, receive_need_len = 0},
     NewState2 = case ReceiveState of
                     header ->
-                        consume_header(NewState1, ConsumeData);
+                        consume_header(ConsumeData, NewState1);
                     body ->
-                        consume_body(NewState1, ConsumeData)
+                        consume_body(ConsumeData, NewState1)
                 end,
     consume_data(NewState2);
 
@@ -212,7 +198,7 @@ consume_data(State) ->
 %% TODO: Be consistent in naming (Data vs Bin)
 %% TODO: Update receive state and needed_len
 
-consume_header(State, HeaderBin) ->
+consume_header(HeaderBin, State) ->
     io:format("consume_header State = ~w~n", [State]),
     HeaderRec = of_v10_decoder:decode_header(HeaderBin),
     io:format("HeaderRec = ~w~n", [HeaderRec]),
@@ -222,18 +208,15 @@ consume_header(State, HeaderBin) ->
                               receive_need_len = BodyLength,
                               received_header  = HeaderRec}.
 
-%% TODO: Implement this
-%% TODO: Send decoded message to receiver pid
-
-consume_body(State, BodyBin) ->
+consume_body(BodyBin, State) ->
     io:format("consume_body State = ~w~n", [State]),
     io:format("BodyBin = ~w~n", [BodyBin]),
     #of_connection_state{received_header = HeaderRec,
-                         receiver_pid    = ReceivedPid} = State,
+                         receiver_pid    = ReceiverPid} = State,
     #of_v10_header{type = MessageType, xid = Xid} = HeaderRec,
     MessageRec = of_v10_decoder:decode_body(MessageType, BodyBin),
-    io:format("of_connection: receive xid=~w message=~w~n", [Xid, MessageRec]),
-    ReceivedPid ! {of_receive_message, Xid, MessageRec},
+    io:format("of_connection: receive Xid=~w Message=~w ReceiverPid=~w~n", [Xid, MessageRec, ReceiverPid]),
+    ReceiverPid ! {of_receive_message, Xid, MessageRec},
     State#of_connection_state{receive_state    = header,
                               receive_need_len = ?OF_HEADER_LEN,
                               received_header  = undefined}.
@@ -266,33 +249,33 @@ echo_server_loop(Socket) ->
     end.
                 
 start_and_stop_test() ->
-    {ok, Pid} = start_link([]),
+    {ok, Pid} = start_link(),
     ?assert(is_process_alive(Pid)),
     stopped = stop(Pid),
     ?assert(not is_process_alive(Pid)).
  
 connect_and_close_test() ->
     {ok, Port} = echo_server_start(),
-    {ok, Pid} = start_link([]),
+    {ok, Pid} = start_link(),
     ok = connect(Pid, "localhost", Port),
     ok = close(Pid),
     stopped = stop(Pid).
 
 connect_already_connected_test() ->
     {ok, Port} = echo_server_start(),
-    {ok, Pid} = start_link([]),
+    {ok, Pid} = start_link(),
     ok = connect(Pid, "localhost", Port),
     {error, already_connected} = connect(Pid, "localhost", Port),
     ok = close(Pid),
     stopped = stop(Pid).
 
 connect_no_server_test() ->
-    {ok, Pid} = start_link([]),
+    {ok, Pid} = start_link(),
     UnusedPort = 106,
     {error, econnrefused} = connect(Pid, "localhost", UnusedPort),
     stopped = stop(Pid).
     
 close_not_connected_test() ->
-    {ok, Pid} = start_link([]),
+    {ok, Pid} = start_link(),
     ok = close(Pid),
     stopped = stop(Pid).
