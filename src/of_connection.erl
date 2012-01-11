@@ -68,13 +68,13 @@ send(Pid, Xid, MessageRec) ->
 
 init([State]) ->
     Socket = State#of_connection_state.socket,
-    io:format("Connection init Socket=~w!!!~n", [Socket]),  %% @@@
+    io:format("of_connection: connection init Socket=~w~n", [Socket]),  %% @@@
     case Socket of
         undefined ->
             do_nothing;
         _ ->
             ok = inet:setopts(Socket, [{active, once}]),
-            io:format("Connection socket activated!!!~n")  %% @@@
+            io:format("of_connection: connection socket activated~n")  %% @@@
     end,
     {ok, State}.
 
@@ -116,6 +116,7 @@ handle_call(close, _From, State) ->
     {reply, ok, NewState};
 
 handle_call({send, Xid, MessageRec}, _From, State) ->
+    io:format("of_connection: send xid=~w message=~w~n", [Xid, MessageRec]),
     MessageBin = of_v10_encoder:encode(MessageRec, Xid),
     Socket = State#of_connection_state.socket,
     io:format("Sending ~w ~w~n", [Socket, MessageBin]),
@@ -231,7 +232,7 @@ consume_body(State, BodyBin) ->
                          receiver_pid    = ReceivedPid} = State,
     #of_v10_header{type = MessageType, xid = Xid} = HeaderRec,
     MessageRec = of_v10_decoder:decode_body(MessageType, BodyBin),
-    io:format("MessageRec = ~w~n", [MessageRec]),
+    io:format("of_connection: receive xid=~w message=~w~n", [Xid, MessageRec]),
     ReceivedPid ! {of_receive_message, Xid, MessageRec},
     State#of_connection_state{receive_state    = header,
                               receive_need_len = ?OF_HEADER_LEN,

@@ -60,16 +60,16 @@ handle_call(stop, _From, State) ->
     {stop, normal, stopped, State}.
 
 handle_cast(Cast, State) ->
-    io:format("of_switch cast: ~w~n", [Cast]),
+    io:format("of_switch: received cast ~w~n", [Cast]),
     {noreply, State}.
 
 handle_info({of_receive_message, Xid, Message}, State) ->
-    io:format("Received xid=0x~.16b message=~w~n", [Xid, Message]),
+    io:format("of_switch: receive xid=~w message=~w~n", [Xid, Message]),
     NewState = switch_message_received(State, Xid, Message),
     {noreply, NewState};
 
 handle_info(Info, State) ->
-    io:format("of_switch info: ~w~n", [Info]),
+    io:format("of_switch: received info ~w~n", [Info]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->

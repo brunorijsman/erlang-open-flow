@@ -71,14 +71,16 @@ handle_cast({accepted, Socket}, State) ->
     ok = HandleConnection(Socket),
     {noreply, State};
 
-handle_cast({'EXIT', _From, _Reason}, State) ->
-    %% @@@ TODO
+handle_cast({'EXIT', From, Reason}, State) ->
+    io:format("of_server: received EXIT from ~w for reason ~w~n", [From, Reason]),
     {noreply, State};
 
-handle_cast(_Cast, State) ->
+handle_cast(Cast, State) ->
+    io:format("of_server: received cast ~w~n", [Cast]),
     {noreply, State}.
 
-handle_info(_Info, State) ->
+handle_info(Info, State) ->
+    io:format("of_server: received info ~w~n", [Info]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->
