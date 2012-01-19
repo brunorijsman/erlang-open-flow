@@ -292,8 +292,8 @@ encode_header(Header) ->
 
 encode_body(BodyRec) ->
     if
-        is_record(BodyRec, of_v10_hello)                    -> encode_hello(BodyRec);
-        is_record(BodyRec, of_v10_error)                    -> encode_error(BodyRec);
+        is_record(BodyRec, of_vxx_hello)                    -> encode_hello(BodyRec);
+        is_record(BodyRec, of_vxx_error)                    -> encode_error(BodyRec);
         is_record(BodyRec, of_v10_echo_request)             -> encode_echo_request(BodyRec);
         is_record(BodyRec, of_v10_echo_reply)               -> encode_echo_reply(BodyRec);
         is_record(BodyRec, of_v10_vendor)                   -> encode_vendor(BodyRec);
@@ -321,7 +321,7 @@ encode_hello(_HelloRec) ->
     {?OF_V10_MESSAGE_TYPE_HELLO, ?OF_V10_HELLO_PATTERN}.
 
 encode_error(ErrorRec) ->
-    #of_v10_error{type = Type, code = Code, data = Data} = ErrorRec,
+    #of_vxx_error{type = Type, code = Code, data = Data} = ErrorRec,
     {?OF_V10_MESSAGE_TYPE_ERROR, ?OF_V10_ERROR_PATTERN}.
 
 encode_echo_request(EchoRequestRec) ->

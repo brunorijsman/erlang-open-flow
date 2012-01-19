@@ -157,22 +157,23 @@ hello_bin() ->
     << >>.
 
 hello_rec() ->
-    #of_v10_hello{}.
+    #of_vxx_hello{version = ?OF_V10_VERSION}.
 
 hello_with_extension_bin() ->
     << 1, 2, 3, 4, 5 >>.
 
 hello_with_extension_rec() ->
-    #of_v10_hello{}.
+    #of_vxx_hello{version = ?OF_V10_VERSION}.
 
 error_bin() ->
     <<?OF_V10_ERROR_TYPE_BAD_REQUEST         : 16,
       ?OF_V10_ERROR_CODE_BAD_REQUEST_BAD_LEN : 16 >>.
 
 error_rec() ->
-    #of_v10_error{type = ?OF_V10_ERROR_TYPE_BAD_REQUEST,
-                  code = ?OF_V10_ERROR_CODE_BAD_REQUEST_BAD_LEN,
-                  data = << >>}.
+    #of_vxx_error{version = ?OF_V10_VERSION,
+                  type    = ?OF_V10_ERROR_TYPE_BAD_REQUEST,
+                  code    = ?OF_V10_ERROR_CODE_BAD_REQUEST_BAD_LEN,
+                  data    = << >>}.
 
 error_with_data_bin() ->
     <<?OF_V10_ERROR_TYPE_BAD_ACTION              : 16,
@@ -180,9 +181,10 @@ error_with_data_bin() ->
       5, 4, 3, 2, 1 >>.
 
 error_with_data_rec() ->
-    #of_v10_error{type = ?OF_V10_ERROR_TYPE_BAD_ACTION,
-                  code = ?OF_V10_ERROR_CODE_BAD_ACTION_BAD_OUT_PORT,
-                  data = <<5, 4, 3, 2, 1>>}.
+    #of_vxx_error{version = ?OF_V10_VERSION,
+                  type    = ?OF_V10_ERROR_TYPE_BAD_ACTION,
+                  code    = ?OF_V10_ERROR_CODE_BAD_ACTION_BAD_OUT_PORT,
+                  data    = <<5, 4, 3, 2, 1>>}.
 
 echo_request_bin() ->
     << >>.

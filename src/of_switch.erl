@@ -21,7 +21,8 @@
 -include_lib("../include/of_v10.hrl").
 
 -record(of_switch_state, {
-          connection_pid}).
+          connection_pid,
+          version}).
 
 %%
 %% Exported functions.
@@ -45,7 +46,7 @@ accept(Pid, Socket) ->
 %%
 
 init([]) ->
-    State = #of_switch_state{connection_pid = undefined},
+    State = #of_switch_state{connection_pid = undefined, version = undefined},
     {ok, State}.
 
 handle_call({connect, IpAddress, TcpPort}, _From, State) ->
@@ -70,8 +71,7 @@ handle_cast(Cast, State) ->
 
 handle_info({of_receive_message, Xid, Message}, State) ->
     io:format("of_switch: of_receive_message Xid=~w Message=~w~n", [Xid, Message]),
-    State1 = process_received_message(Xid, Message, State),
-    {noreply, State1};
+    process_received_message(Xid, Message, State);
 
 handle_info(Info, State) ->
     io:format("of_switch: info Info=~w~n", [Info]),
@@ -90,22 +90,36 @@ code_change(OldVersion, State, _Extra) ->
 %%
 
 initiate_connection(IpAddress, TcpPort, State) ->
-    %% TODO make sure connection_pid is undefined
     {ok, ConnectionPid} = of_connection:start_link(),
     ok = of_connection:connect(ConnectionPid, IpAddress, TcpPort),
     State#of_switch_state{connection_pid = ConnectionPid}.
 
+close_connection(State) ->
+    ConnectionPid = State#of_switch_state.connection_pid,
+    ok = of_connection:close(ConnectionPid),
+    of_connection:stop(ConnectionPid),
+    State#of_switch_state{connection_pid = undefined, version = undefined}.
+
 accept_connection(Socket, State) -> 
-    %% TODO make sure connection_pid is undefined
     {ok, ConnectionPid} = of_connection:start_link(),
     ok = of_connection:accept(ConnectionPid, Socket),
     State#of_switch_state{connection_pid = ConnectionPid}.
 
 send_hello(State) ->
-    HelloMessage = #of_v10_hello{},
+    Message = #of_vxx_hello{version = ?OF_VERSION_MAX},
     ConnectionPid = State#of_switch_state.connection_pid,
-    Xid = 0, %% TODO: Xid allocation
-    ok = of_connection:send(ConnectionPid, Xid, HelloMessage),
+    Xid = 0,
+    ok = of_connection:send(ConnectionPid, Xid, Message),
+    State.
+
+send_error_incompatible(State) ->
+    Message = #of_vxx_error{version = ?OF_VERSION_MIN,
+                            type    = ?OF_VXX_ERROR_TYPE_HELLO_FAILED,
+                            code    = ?OF_VXX_ERROR_CODE_HELLO_FAILED_INCOMPATIBLE,
+                            data    = << ?OF_IMPLEMENTATION_NAME >>},
+    ConnectionPid = State#of_switch_state.connection_pid,
+    Xid = 0,
+    ok = of_connection:send(ConnectionPid, Xid, Message),
     State.
 
 process_connection_up(State) ->
@@ -116,25 +130,58 @@ process_connection_up(State) ->
 %%     State.
 
 process_received_message(Xid, Message, State) ->
+    case State#of_switch_state.version of
+        undefined -> process_received_initial_message(Xid, Message, State);
+        _         -> process_received_subsequent_message(Xid, Message, State)
+    end.
+
+process_received_initial_message(Xid, Message, State) ->
     if
-        is_record(Message, of_v10_hello)        -> process_received_hello(Xid, Message, State);
-        is_record(Message, of_v10_echo_request) -> process_received_echo_request(Xid, Message, State);
+        is_record(Message, of_vxx_hello)        -> process_received_initial_hello(Xid, Message, State);
+        true                                    -> process_received_initial_unexpected_message(Xid, Message, State)
+    end.
+
+process_received_initial_hello(_Xid, Hello, State) ->
+    Version = Hello#of_vxx_hello.version,
+    if
+        (Version >= ?OF_VERSION_MIN) andalso (Version =< ?OF_VERSION_MAX) ->
+            io:format("of_switch: version negotiation succeeded Version=~w~n", [Version]),
+            State1 = State#of_switch_state{version = Version},
+            {noreply, State1};
+        true ->
+            io:format("of_switch: version negotiation failed Version=~w~n", [Version]),
+            State1 = send_error_incompatible(State),
+            State2 = close_connection(State1),
+            %% TODO: This causes a "=ERROR REPORT===="; can that be avoided?
+            {stop, version_negotiation_failed, State2}
+    end.
+
+process_received_initial_unexpected_message(_Xid, _Message, State) ->
+    %% TODO
+    {noreply, State}.
+
+process_received_subsequent_message(Xid, Message, State) ->
+    %% TODO: make sure version is negotiated version; pass Version along with Xid after all.
+    if
+        is_record(Message, of_vxx_hello)        -> process_received_hello(Xid, Message, State);
+        is_record(Message, of_v10_echo_request) -> process_received_v10_echo_request(Xid, Message, State);
         true                                    -> process_received_unknown_message(Xid, Message, State)
     end.
 
-process_received_hello(_Xid, _Hello, State) ->
-    %% TODO: Do version negotiation
-    State.
+process_received_hello(_Xid, Hello, State) ->
+    %% Be tolerant: allow peer to send hello message as non-initial message (ignore it)
+    io:format("of_switch: peer unexpectedly sent non-initial hello message Hello=~w~n", [Hello]),
+    {noreply, State}.
 
-process_received_echo_request(Xid, EchoRequest, State) ->
+process_received_v10_echo_request(Xid, EchoRequest, State) ->
     Data = EchoRequest#of_v10_echo_request.data,
     EchoReply = #of_v10_echo_reply{data = Data},
     ConnectionPid = State#of_switch_state.connection_pid,
     ok = of_connection:send(ConnectionPid, Xid, EchoReply),
     %% TODO: liveness checking (not here probably - more general)
-    State.
+    {noreply, State}.
 
 process_received_unknown_message(_Xid, Message, State) ->
     %% TODO: add missing messages
     io:format("of_switch: process_received_unknown_message Message=~w~n", [Message]),
-    State.
+    {noreply, State}.

@@ -3,6 +3,7 @@
 
 %% TODO: Fix the include paths
 -include_lib("../include/of_types.hrl").
+-include_lib("../include/of_vxx.hrl").
 
 -define(OF_V10_VERSION, 1).
 
@@ -600,13 +601,6 @@
           length  :: uint16(),
           xid     :: of_xid() }). 
 
--record(of_v10_hello, {}).
-
--record(of_v10_error, {
-          type :: uint16(),   %% Accept unrecognized types
-          code :: uint16(),   %% Accept unrecognized codes
-          data :: binary() }).
-
 -record(of_v10_echo_request, {
           data :: binary() }).
 
@@ -967,8 +961,8 @@
           port   :: uint16(),
           queues :: [#of_v10_queue{}] }).
 
--type of_v10_message() :: #of_v10_hello{} |
-                          #of_v10_error{} |
+-type of_v10_message() :: #of_vxx_hello{} |
+                          #of_vxx_error{} |
                           #of_v10_echo_request{} |
                           #of_v10_echo_reply{} |
                           #of_v10_vendor{} |

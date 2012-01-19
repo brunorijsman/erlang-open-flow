@@ -132,9 +132,7 @@ handle_call({send, Xid, MessageRec}, _From, State) ->
     io:format("of_connection: send xid=~w message=~w~n", [Xid, MessageRec]),
     MessageBin = of_v10_encoder:encode(MessageRec, Xid),
     Socket = State#of_connection_state.socket,
-    io:format("Sending ~w ~w~n", [Socket, MessageBin]),
     ok = gen_tcp:send(Socket, MessageBin),    %% TODO: handle send failure. Async send?
-    io:format("Sent ~w (~w)~n", [MessageRec, MessageBin]),
     {reply, ok, State}.
     
 handle_cast(_Cast, State) ->
@@ -162,12 +160,9 @@ code_change(_OldVersion, State, _Extra) ->
 %%
 
 receive_data(Data, State) ->
-    io:format("OldState = ~w~n", [State]),
     Socket = State#of_connection_state.socket,
     ok = inet:setopts(Socket, [{active, once}]),
     NewState = append_data(Data, State),
-    io:format("Received ~w bytes~n", [byte_size(NewState#of_connection_state.received_data)]),
-    io:format("NewState = ~w~n", [NewState]),
     consume_data(NewState).
 
 append_data(Data, State) ->
@@ -179,7 +174,6 @@ consume_data(#of_connection_state{receive_state    = ReceiveState,
                                   received_data    = ReceivedData, 
                                   receive_need_len = ReceiveNeedLen} = State)
   when byte_size(ReceivedData) >= ReceiveNeedLen ->
-    io:format("Collected data is ~w (>= ~w needed bytes)~n", [ReceivedData, ReceiveNeedLen]),
     <<ConsumeData: ReceiveNeedLen/binary, RestData/binary>> = ReceivedData,
     NewState1 = State#of_connection_state{received_data = RestData, receive_need_len = 0},
     NewState2 = case ReceiveState of
@@ -191,7 +185,6 @@ consume_data(#of_connection_state{receive_state    = ReceiveState,
     consume_data(NewState2);
 
 consume_data(State) ->
-    io:format("Need more data before can process: have ~w more bytes~n", [State#of_connection_state.receive_need_len]),
     State.
 
 %% TODO: Catch decode exceptions
@@ -199,9 +192,7 @@ consume_data(State) ->
 %% TODO: Update receive state and needed_len
 
 consume_header(HeaderBin, State) ->
-    io:format("consume_header State = ~w~n", [State]),
     HeaderRec = of_v10_decoder:decode_header(HeaderBin),
-    io:format("HeaderRec = ~w~n", [HeaderRec]),
     #of_v10_header{length = Length} = HeaderRec,
     BodyLength = Length - ?OF_V10_HEADER_LEN,    %% TODO: validate >=
     State#of_connection_state{receive_state    = body,
@@ -209,8 +200,6 @@ consume_header(HeaderBin, State) ->
                               received_header  = HeaderRec}.
 
 consume_body(BodyBin, State) ->
-    io:format("consume_body State = ~w~n", [State]),
-    io:format("BodyBin = ~w~n", [BodyBin]),
     #of_connection_state{received_header = HeaderRec,
                          receiver_pid    = ReceiverPid} = State,
     #of_v10_header{type = MessageType, xid = Xid} = HeaderRec,

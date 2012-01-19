@@ -1,6 +1,12 @@
 VERSION 1.0
 ===========
 
+[Page 11] The spec if vague on what to do when a Hello message is received after connection startup (i.e. when the initial Hellos have already been exchanged)? Option 1: accept and ignore the message as long as the version matches the negotiated version; send an error is the version is wrong. Option 2: always send an error (HELLO_FAILED? BAD_REQUEST?)
+
+[Page 16] What does the following sentence mean? "The final version for a Type 0 switch will be 0x00." What is a "Type 0 switch"? How does this relate to the current version 0x01?
+
+[Page 16] It is not clear what xid must be set to for messages which are neither a request nor a reply. Can it be any random value?
+
 [Page 32] Why does ofp_flow_stats have a Length field? It seems that it is not needed: the length of the ofp_flow_stats field can be derived from the length in the message header. What is "this entry" (i.e. what, exactly, is this the length of)? 
 
 [Page 35] The value of OFPQ_ALL is not defined anywhere in the spec.
@@ -8,7 +14,6 @@ VERSION 1.0
 [Page 35] The specification is not very clean on the layout of the ofp_vendor_stats_request and ofp_vendor_stats_reply messages.
 
 [Page 37] buffer_id should be set to -1 when the packet is not buffered, but buffer_id is unsigned (uint32_t). Should say "0xffffffff" instead.
-
 
 VERSION 1.1
 ===========

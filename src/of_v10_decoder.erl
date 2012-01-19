@@ -69,17 +69,18 @@ decode_body(MessageType, BodyBin) ->
 %% Internal functions.
 %%
 
--spec decode_hello(binary()) -> #of_v10_hello{}.
+-spec decode_hello(binary()) -> #of_vxx_hello{}.
 decode_hello(?OF_V10_HELLO_PATTERN) ->
-    _Hello = #of_v10_hello{}.
+    _Hello = #of_vxx_hello{version = ?OF_V10_VERSION}.
 
--spec decode_error(binary()) -> #of_v10_error{}.
+-spec decode_error(binary()) -> #of_vxx_error{}.
 decode_error(?OF_V10_ERROR_PATTERN) ->
     %% No validation, accept unrecognized types and codes.
-    _Error = #of_v10_error{
-      type = Type,
-      code = Code,
-      data = Data
+    _Error = #of_vxx_error{
+      version = ?OF_V10_VERSION,
+      type    = Type,
+      code    = Code,
+      data    = Data
      }.
 
 -spec decode_echo_request(binary()) -> #of_v10_echo_request{}.
