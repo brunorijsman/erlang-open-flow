@@ -17,12 +17,24 @@
          terminate/2,
          code_change/3]).
 
+-include_lib("eunit/include/eunit.hrl").
+
 -include_lib("../include/of.hrl").
 -include_lib("../include/of_v10.hrl").
 
 -record(of_switch_state, {
           connection_pid,
-          version}).
+          version,
+          receive_hello_timer,
+          send_echo_request_timer
+         }).
+
+%% TODO: Make this configurable. 
+%% TODO: Have configurable option to only send echo requests in the absence of other received messages.
+-define(SEND_ECHO_REQUEST_INTERVAL_MSECS, 30000).
+
+%% TODO: Make this configurable. 
+-define(RECEIVE_HELLO_INTERVAL_MSECS, 10000).
 
 %%
 %% Exported functions.
@@ -46,7 +58,10 @@ accept(Pid, Socket) ->
 %%
 
 init([]) ->
-    State = #of_switch_state{connection_pid = undefined, version = undefined},
+    State = #of_switch_state{connection_pid          = undefined, 
+                             version                 = undefined,
+                             receive_hello_timer     = undefined,
+                             send_echo_request_timer = undefined},
     {ok, State}.
 
 handle_call({connect, IpAddress, TcpPort}, _From, State) ->
@@ -73,6 +88,9 @@ handle_info({of_receive_message, Xid, Message}, State) ->
     io:format("of_switch: of_receive_message Xid=~w Message=~w~n", [Xid, Message]),
     process_received_message(Xid, Message, State);
 
+handle_info(timer_expired_receive_hello, State) ->
+    process_timer_expired_receive_hello(State);
+
 handle_info(Info, State) ->
     io:format("of_switch: info Info=~w~n", [Info]),
     {noreply, State}.
@@ -90,21 +108,43 @@ code_change(OldVersion, State, _Extra) ->
 %%
 
 initiate_connection(IpAddress, TcpPort, State) ->
+    ?assert(State#of_switch_state.connection_pid == undefined),
     {ok, ConnectionPid} = of_connection:start_link(),
     ok = of_connection:connect(ConnectionPid, IpAddress, TcpPort),
-    State#of_switch_state{connection_pid = ConnectionPid}.
+    State1 = State#of_switch_state{connection_pid = ConnectionPid},
+    start_receive_hello_timer(State1).
+    
+accept_connection(Socket, State) -> 
+    {ok, ConnectionPid} = of_connection:start_link(),
+    ok = of_connection:accept(ConnectionPid, Socket),
+    State1 = State#of_switch_state{connection_pid = ConnectionPid},
+    start_receive_hello_timer(State1).
 
 close_connection(State) ->
     ConnectionPid = State#of_switch_state.connection_pid,
+    ?assert(is_pid(ConnectionPid)),
     ok = of_connection:close(ConnectionPid),
     of_connection:stop(ConnectionPid),
     State#of_switch_state{connection_pid = undefined, version = undefined}.
 
-accept_connection(Socket, State) -> 
-    {ok, ConnectionPid} = of_connection:start_link(),
-    ok = of_connection:accept(ConnectionPid, Socket),
-    State#of_switch_state{connection_pid = ConnectionPid}.
-
+start_receive_hello_timer(State) ->
+    State1 = case State#of_switch_state.receive_hello_timer of
+                 undefined -> State;
+                 _         -> stop_receive_hello_timer(State)
+             end,
+    {ok, Timer} = timer:send_after(?RECEIVE_HELLO_INTERVAL_MSECS, timer_expired_receive_hello),
+    State1#of_switch_state{receive_hello_timer = Timer}.
+    
+stop_receive_hello_timer(State) ->
+    case State#of_switch_state.receive_hello_timer of
+        undefined -> 
+            State;
+        _         -> 
+            Timer = State#of_switch_state.receive_hello_timer,
+            {ok, cancel} = timer:cancel(Timer),
+            State#of_switch_state{receive_hello_timer = undefined}
+    end.
+    
 send_hello(State) ->
     Message = #of_vxx_hello{version = ?OF_VERSION_MAX},
     ConnectionPid = State#of_switch_state.connection_pid,
@@ -129,6 +169,13 @@ process_connection_up(State) ->
 %%     %% TODO
 %%     State.
 
+process_timer_expired_receive_hello(State) ->
+    io:format("of_switch: no hello received from peer, closing connection~n"),
+    State1 = close_connection(State),
+    {stop, no_hello_received, State1}.
+
+%% TODO: process_send_echo_request_timer_expired
+
 process_received_message(Xid, Message, State) ->
     case State#of_switch_state.version of
         undefined -> process_received_initial_message(Xid, Message, State);
@@ -142,18 +189,19 @@ process_received_initial_message(Xid, Message, State) ->
     end.
 
 process_received_initial_hello(_Xid, Hello, State) ->
+    State1 = stop_receive_hello_timer(State),
     Version = Hello#of_vxx_hello.version,
     if
         (Version >= ?OF_VERSION_MIN) andalso (Version =< ?OF_VERSION_MAX) ->
             io:format("of_switch: version negotiation succeeded Version=~w~n", [Version]),
-            State1 = State#of_switch_state{version = Version},
-            {noreply, State1};
+            State2 = State#of_switch_state{version = Version},
+            {noreply, State2};
         true ->
             io:format("of_switch: version negotiation failed Version=~w~n", [Version]),
-            State1 = send_error_incompatible(State),
-            State2 = close_connection(State1),
+            State2 = send_error_incompatible(State1),
+            State3 = close_connection(State2),
             %% TODO: This causes a "=ERROR REPORT===="; can that be avoided?
-            {stop, version_negotiation_failed, State2}
+            {stop, version_negotiation_failed, State3}
     end.
 
 process_received_initial_unexpected_message(_Xid, _Message, State) ->
