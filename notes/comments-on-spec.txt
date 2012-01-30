@@ -1,11 +1,19 @@
 VERSION 1.0
 ===========
 
+[Page 10] The spec says that "Controller/switch messages are initiated by the controller". Nitpick: on page 16 the _REPLY messages are also marked as "controller/switch" messages but they are not initiated by the controller. It would be better to mark the messages "controller -> switch messages" and "controller <- switch messages".
+
+[Page 10] Inconsistent usage of "response" vs "reply".
+
+[Page 10] The document does not specify what to do when a controller receives a message from a switch which was not supposed to be initiated a switch (e.g. a _REQUEST message). Should an error be sent, and if so, which one?
+
 [Page 11] The spec if vague on what to do when a Hello message is received after connection startup (i.e. when the initial Hellos have already been exchanged)? Option 1: accept and ignore the message as long as the version matches the negotiated version; send an error is the version is wrong. Option 2: always send an error (HELLO_FAILED? BAD_REQUEST?)
+
+[Page 11] Explain what an "immutable message" is (the related concept of an "immutable error type" is explained on page 39).
 
 [Page 16] What does the following sentence mean? "The final version for a Type 0 switch will be 0x00." What is a "Type 0 switch"? How does this relate to the current version 0x01?
 
-[Page 16] It is not clear what xid must be set to for messages which are neither a request nor a reply. Can it be any random value?
+[Page 16] It is not clear what xid must be set to for messages which are neither a request nor a reply. Can it be any random value? Should it be zero?
 
 [Page 32] Why does ofp_flow_stats have a Length field? It seems that it is not needed: the length of the ofp_flow_stats field can be derived from the length in the message header. What is "this entry" (i.e. what, exactly, is this the length of)? 
 
@@ -18,19 +26,18 @@ VERSION 1.0
 VERSION 1.1
 ===========
 
-[Page 25] Inconsistency: "OFP_MAX_ETH_ALEN is 6" -> "OFP_ETH_ALEN is 6"
+[Page 25] Inconsistency: "OFP_MAX_ETH_ALEN is 6" -> "OFP_ETH_ALEN is 6" (word MAX is missing in 2nd)
 
 [Page 28] Typo in struct ofp_queue_prop_header: "64-bit alignemnt" -> "64-bit alignment"
 
 [General] Inconsistent naming for layer 2 addresses:
-hw_addr => hw for hardware
-OPT_ETH_ALEN => eth for ethernet
-dl_src => dl for datalink
+* hw_addr => hw for hardware
+* OPT_ETH_ALEN => eth for ethernet
+* dl_src => dl for datalink
 
 [Page 36] Why is the field called 'reserverd' (and not pad like everywhere else).
 
-[Page 36] 8 bits for n_tables is not nearly enough; there are platforms which support 
-many more than 256 tables.
+[Page 36] 8 bits for n_tables is not nearly enough; there are platforms which support many more than 256 tables.
 
 [Page 37] Second reference for n_buffers is ??.
 

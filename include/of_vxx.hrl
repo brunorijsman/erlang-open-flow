@@ -3,6 +3,9 @@
 
 -include_lib("../include/of_types.hrl").
 
+%% TODO: The spec has an explicit list of "immutable" messages and error
+%% codes. Include additional messages and use immutable terminology
+
 -define(OF_VXX_ERROR_TYPE_HELLO_FAILED, 0).
 
 -define(OF_VXX_ERROR_CODE_HELLO_FAILED_INCOMPATIBLE, 0).

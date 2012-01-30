@@ -223,9 +223,15 @@ send_hello(State) ->
     Hello = #of_vxx_hello{version = ?OF_VERSION_MAX},
     send_message(_Xid = 0, Hello, State).
 
-send_v10_echo_request(State) ->
+send_echo_request(State) ->
+    %% TODO: v10 => vxx or immutable or remove
     EchoRequest = #of_v10_echo_request{data = << >>},
     send_request(EchoRequest, fun process_received_v10_echo_reply/3, State).
+
+send_features_request(State) ->
+    %% TODO: use right version of message depending on negotiated version
+    FeaturesRequest = #of_v10_features_request{},
+    send_request(FeaturesRequest, fun process_received_v10_features_reply/3, State).
 
 send_error_incompatible(State) ->
     Error = #of_vxx_error{version = ?OF_VERSION_MIN,
@@ -236,8 +242,9 @@ send_error_incompatible(State) ->
 
 process_connection_up(State) ->
     State1 = send_hello(State),
-    State2 = start_receive_hello_timer(State1),
-    start_send_echo_request_timer(State2).     %% TODO This depends on version negotiation
+    State2 = send_features_request(State1),
+    State3 = start_receive_hello_timer(State2),
+    start_send_echo_request_timer(State3).
 
 %% process_connection_down(State) ->
 %%     %% TODO
@@ -251,7 +258,7 @@ process_timer_expired_receive_hello(State) ->
 
 process_timer_expired_send_echo_request(State) ->
     State1 = State#of_switch_state{send_echo_request_timer = undefined},
-    State2 = send_v10_echo_request(State1),    %% TODO: This depends on negotiated verion
+    State2 = send_echo_request(State1),
     {noreply, State2}.
 
 process_timer_expired_receive_reply(Xid, State) ->
@@ -296,10 +303,29 @@ process_received_initial_unexpected_message(_Xid, _Message, State) ->
 process_received_subsequent_message(Xid, Message, State) ->
     %% TODO: make sure version is negotiated version; pass Version along with Xid after all.
     if
-        is_record(Message, of_vxx_hello)        -> process_received_hello(Xid, Message, State);
-        is_record(Message, of_v10_echo_request) -> process_received_v10_echo_request(Xid, Message, State);
-        is_record(Message, of_v10_echo_reply)   -> process_received_reply(Xid, Message, State);
-        true                                    -> process_received_unknown_message(Xid, Message, State)
+        is_record(Message, of_vxx_hello)                    -> process_received_hello(Xid, Message, State);
+        is_record(Message, of_vxx_error)                    -> process_received_unimplemented_message(Xid, Message, State);   %% TODO
+        is_record(Message, of_v10_echo_request)             -> process_received_v10_echo_request(Xid, Message, State);
+        is_record(Message, of_v10_echo_reply)               -> process_received_reply(Xid, Message, State);
+        is_record(Message, of_v10_vendor)                   -> process_received_unimplemented_message(Xid, Message, State);   %% TODO
+        is_record(Message, of_v10_features_request)         -> process_received_unexpected_from_switch_message(Xid, Message, State);
+        is_record(Message, of_v10_features_reply)           -> process_received_reply(Xid, Message, State);
+        is_record(Message, of_v10_get_config_request)       -> process_received_unexpected_from_switch_message(Xid, Message, State);
+        is_record(Message, of_v10_get_config_reply)         -> process_received_reply(Xid, Message, State);
+        is_record(Message, of_v10_set_config)               -> process_received_unexpected_from_switch_message(Xid, Message, State);
+        is_record(Message, of_v10_packet_in)                -> process_received_unimplemented_message(Xid, Message, State);   %% TODO
+        is_record(Message, of_v10_flow_removed)             -> process_received_unimplemented_message(Xid, Message, State);   %% TODO
+        is_record(Message, of_v10_port_status)              -> process_received_unimplemented_message(Xid, Message, State);   %% TODO
+        is_record(Message, of_v10_packet_out)               -> process_received_unexpected_from_switch_message(Xid, Message, State);
+        is_record(Message, of_v10_flow_mod)                 -> process_received_unexpected_from_switch_message(Xid, Message, State);
+        is_record(Message, of_v10_port_mod)                 -> process_received_unexpected_from_switch_message(Xid, Message, State);
+        is_record(Message, of_v10_stats_request)            -> process_received_unexpected_from_switch_message(Xid, Message, State);
+        is_record(Message, of_v10_stats_reply)              -> process_received_reply(Xid, Message, State);
+        is_record(Message, of_v10_barrier_request)          -> process_received_unexpected_from_switch_message(Xid, Message, State);
+        is_record(Message, of_v10_barrier_reply)            -> process_received_reply(Xid, Message, State);
+        is_record(Message, of_v10_queue_get_config_request) -> process_received_unexpected_from_switch_message(Xid, Message, State);
+        is_record(Message, of_v10_queue_get_config_reply)   -> process_received_reply(Xid, Message, State);
+        true                                                -> process_received_unknown_message(Xid, Message, State)
     end.
 
 process_received_hello(_Xid, Hello, State) ->
@@ -334,7 +360,21 @@ process_received_v10_echo_reply(_Xid, EchoReply, State) ->
     State1 = start_send_echo_request_timer(State),
     {noreply, State1}.
 
+process_received_v10_features_reply(_Xid, _FeaturesReply, State) ->
+    %% TODO @@@
+    {noreply, State}.
+
 process_received_unknown_message(_Xid, Message, State) ->
     %% TODO: add missing messages
-    io:format("of_switch: process_received_unknown_message Message=~w~n", [Message]),
+    io:format("of_switch: received unknown message Message=~w~n", [Message]),
     {noreply, State}.
+
+process_received_unexpected_from_switch_message(_Xid, Message, State) ->
+    io:format("of_switch: received unexpected message from switch Message=~w~n", [Message]),
+    {noreply, State}.
+
+process_received_unimplemented_message(_Xid, Message, State) ->
+    %% TODO: this goes away once all messages are implemented
+    io:format("of_switch: received unimplemented message Message=~w~n", [Message]),
+    {noreply, State}.
+
