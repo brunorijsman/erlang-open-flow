@@ -25,16 +25,25 @@
 -record(of_switch_state, {
           connection_pid,
           version,
+          next_local_xid,
           receive_hello_timer,
-          send_echo_request_timer
+          send_echo_request_timer,
+          receive_echo_reply_timer    %% TODO: This should go away
          }).
 
-%% TODO: Make this configurable. 
+%% TODO: Use this
+-record(pending_request, {
+          xid,
+          timer
+         }).
+
+-define(MAX_UINT32, 4294967295).
+
+%% TODO: Make all of these configurable. 
 %% TODO: Have configurable option to only send echo requests in the absence of other received messages.
 -define(SEND_ECHO_REQUEST_INTERVAL_MSECS, 30000).
-
-%% TODO: Make this configurable. 
--define(RECEIVE_HELLO_INTERVAL_MSECS, 10000).
+-define(RECEIVE_ECHO_REPLY_TIMEOUT_MSECS, 1000).
+-define(RECEIVE_HELLO_TIMEOUT_MSECS, 1000).
 
 %%
 %% Exported functions.
@@ -58,23 +67,23 @@ accept(Pid, Socket) ->
 %%
 
 init([]) ->
-    State = #of_switch_state{connection_pid          = undefined, 
-                             version                 = undefined,
-                             receive_hello_timer     = undefined,
-                             send_echo_request_timer = undefined},
+    State = #of_switch_state{connection_pid           = undefined, 
+                             version                  = undefined,
+                             next_local_xid           = 1,
+                             receive_hello_timer      = undefined,
+                             send_echo_request_timer  = undefined,
+                             receive_echo_reply_timer = undefined},
     {ok, State}.
 
 handle_call({connect, IpAddress, TcpPort}, _From, State) ->
     io:format("of_switch: connect IpAddress=~w TcpPort=~w~n", [IpAddress, TcpPort]),
     State1 = initiate_connection(IpAddress, TcpPort, State),
-    State2 = process_connection_up(State1),
-    {reply, ok, State2};
+    {reply, ok, State1};
 
 handle_call({accept, Socket}, _From, State) ->
     io:format("of_switch: accept Socket=~w~n", [Socket]),
     State1 = accept_connection(Socket, State),
-    State2 = process_connection_up(State1),
-    {reply, ok, State2};
+    {reply, ok, State1};
 
 handle_call(stop, _From, State) ->
     io:format("of_switch: stop~n"),
@@ -85,11 +94,16 @@ handle_cast(Cast, State) ->
     {noreply, State}.
 
 handle_info({of_receive_message, Xid, Message}, State) ->
-    io:format("of_switch: of_receive_message Xid=~w Message=~w~n", [Xid, Message]),
     process_received_message(Xid, Message, State);
 
 handle_info(timer_expired_receive_hello, State) ->
     process_timer_expired_receive_hello(State);
+
+handle_info(timer_expired_send_echo_request, State) ->
+    process_timer_expired_send_echo_request(State);
+
+handle_info(timer_expired_receive_echo_reply, State) ->
+    process_timer_expired_receive_echo_reply(State);
 
 handle_info(Info, State) ->
     io:format("of_switch: info Info=~w~n", [Info]),
@@ -112,13 +126,13 @@ initiate_connection(IpAddress, TcpPort, State) ->
     {ok, ConnectionPid} = of_connection:start_link(),
     ok = of_connection:connect(ConnectionPid, IpAddress, TcpPort),
     State1 = State#of_switch_state{connection_pid = ConnectionPid},
-    start_receive_hello_timer(State1).
-    
+    process_connection_up(State1).
+
 accept_connection(Socket, State) -> 
     {ok, ConnectionPid} = of_connection:start_link(),
     ok = of_connection:accept(ConnectionPid, Socket),
     State1 = State#of_switch_state{connection_pid = ConnectionPid},
-    start_receive_hello_timer(State1).
+    process_connection_up(State1).
 
 close_connection(State) ->
     ConnectionPid = State#of_switch_state.connection_pid,
@@ -127,56 +141,112 @@ close_connection(State) ->
     of_connection:stop(ConnectionPid),
     State#of_switch_state{connection_pid = undefined, version = undefined}.
 
+start_timer(Timer, Time, Message) ->
+    case Timer of
+        undefined -> nop;
+        _         -> {ok, cancel} = timer:cancel(Timer)
+    end,
+    {ok, NewTimer} = timer:send_after(Time, Message),
+    NewTimer.
+
+stop_timer(Timer) ->
+    case Timer of
+        undefined -> nop;
+        _         -> {ok, cancel} = timer:cancel(Timer)
+    end,
+    ok.
+    
 start_receive_hello_timer(State) ->
-    State1 = case State#of_switch_state.receive_hello_timer of
-                 undefined -> State;
-                 _         -> stop_receive_hello_timer(State)
-             end,
-    {ok, Timer} = timer:send_after(?RECEIVE_HELLO_INTERVAL_MSECS, timer_expired_receive_hello),
-    State1#of_switch_state{receive_hello_timer = Timer}.
+    Timer = start_timer(State#of_switch_state.receive_hello_timer,
+                        ?RECEIVE_HELLO_TIMEOUT_MSECS, 
+                        timer_expired_receive_hello),
+    State#of_switch_state{receive_hello_timer = Timer}.
     
 stop_receive_hello_timer(State) ->
-    case State#of_switch_state.receive_hello_timer of
-        undefined -> 
-            State;
-        _         -> 
-            Timer = State#of_switch_state.receive_hello_timer,
-            {ok, cancel} = timer:cancel(Timer),
-            State#of_switch_state{receive_hello_timer = undefined}
-    end.
+    stop_timer(State#of_switch_state.receive_hello_timer),
+    State#of_switch_state{receive_hello_timer = undefined}.
+
+start_send_echo_request_timer(State) ->
+    Timer = start_timer(State#of_switch_state.send_echo_request_timer,
+                        ?SEND_ECHO_REQUEST_INTERVAL_MSECS, 
+                        timer_expired_send_echo_request),
+    State#of_switch_state{send_echo_request_timer = Timer}.
+
+%% TODO: need this?    
+%% stop_send_echo_request_timer(State) ->
+%%     stop_timer(State#of_switch_state.send_echo_request_timer),
+%%     State#of_switch_state{send_echo_request_timer = undefined}.
+
+start_receive_echo_reply_timer(State) ->
+    Timer = start_timer(State#of_switch_state.receive_echo_reply_timer,
+                        ?RECEIVE_ECHO_REPLY_TIMEOUT_MSECS, 
+                        timer_expired_receive_echo_reply),
+    State#of_switch_state{receive_echo_reply_timer = Timer}.
+
+stop_receive_echo_reply_timer(State) ->
+    stop_timer(State#of_switch_state.receive_echo_reply_timer),
+    State#of_switch_state{receive_echo_reply_timer = undefined}.
+
+allocate_xid(State) ->
+    Xid = State#of_switch_state.next_local_xid,
+    NextXid = case Xid of
+                  ?MAX_UINT32 -> 1;
+                  _           -> Xid + 1
+              end,
+    State1 = State#of_switch_state{next_local_xid = NextXid},
+    {Xid, State1}.
+
+send_message(Xid, Message, State) ->
+    io:format("of_switch: send message Xid=~w Message=~w~n", [Xid, Message]),
+    ConnectionPid = State#of_switch_state.connection_pid,
+    ok = of_connection:send(ConnectionPid, Xid, Message),
+    State.
     
 send_hello(State) ->
-    Message = #of_vxx_hello{version = ?OF_VERSION_MAX},
-    ConnectionPid = State#of_switch_state.connection_pid,
-    Xid = 0,
-    ok = of_connection:send(ConnectionPid, Xid, Message),
-    State.
+    Hello = #of_vxx_hello{version = ?OF_VERSION_MAX},
+    send_message(_Xid = 0, Hello, State).
+
+send_echo_request(State) ->
+    EchoRequest = #of_v10_echo_request{data = << >>},
+    {Xid, State1} = allocate_xid(State),
+    send_message(Xid, EchoRequest, State1).
 
 send_error_incompatible(State) ->
-    Message = #of_vxx_error{version = ?OF_VERSION_MIN,
-                            type    = ?OF_VXX_ERROR_TYPE_HELLO_FAILED,
-                            code    = ?OF_VXX_ERROR_CODE_HELLO_FAILED_INCOMPATIBLE,
-                            data    = << ?OF_IMPLEMENTATION_NAME >>},
-    ConnectionPid = State#of_switch_state.connection_pid,
-    Xid = 0,
-    ok = of_connection:send(ConnectionPid, Xid, Message),
-    State.
+    Error = #of_vxx_error{version = ?OF_VERSION_MIN,
+                          type    = ?OF_VXX_ERROR_TYPE_HELLO_FAILED,
+                          code    = ?OF_VXX_ERROR_CODE_HELLO_FAILED_INCOMPATIBLE,
+                          data    = << ?OF_IMPLEMENTATION_NAME >>},
+    send_message(_Xid = 0, Error, State).
 
 process_connection_up(State) ->
-    send_hello(State).
+    State1 = send_hello(State),
+    State2 = start_receive_hello_timer(State1),
+    start_send_echo_request_timer(State2).
 
 %% process_connection_down(State) ->
 %%     %% TODO
 %%     State.
 
 process_timer_expired_receive_hello(State) ->
+    State1 = State#of_switch_state{receive_hello_timer = undefined},
     io:format("of_switch: no hello received from peer, closing connection~n"),
-    State1 = close_connection(State),
-    {stop, no_hello_received, State1}.
+    State2 = close_connection(State1),
+    {stop, no_hello_received, State2}.
 
-%% TODO: process_send_echo_request_timer_expired
+process_timer_expired_send_echo_request(State) ->
+    State1 = State#of_switch_state{send_echo_request_timer = undefined},
+    State2 = send_echo_request(State1),
+    State3 = start_receive_echo_reply_timer(State2),
+    {noreply, State3}.
+
+process_timer_expired_receive_echo_reply(State) ->
+    State1 = State#of_switch_state{receive_echo_reply_timer = undefined},
+    io:format("of_switch: no echo reply received from peer, closing connection~n"),
+    State2 = close_connection(State1),
+    {stop, no_echo_reply_received, State2}.
 
 process_received_message(Xid, Message, State) ->
+    io:format("of_switch: receive message Xid=~w Message=~w~n", [Xid, Message]),
     case State#of_switch_state.version of
         undefined -> process_received_initial_message(Xid, Message, State);
         _         -> process_received_subsequent_message(Xid, Message, State)
@@ -213,6 +283,7 @@ process_received_subsequent_message(Xid, Message, State) ->
     if
         is_record(Message, of_vxx_hello)        -> process_received_hello(Xid, Message, State);
         is_record(Message, of_v10_echo_request) -> process_received_v10_echo_request(Xid, Message, State);
+        is_record(Message, of_v10_echo_reply)   -> process_received_v10_echo_reply(Xid, Message, State);
         true                                    -> process_received_unknown_message(Xid, Message, State)
     end.
 
@@ -224,10 +295,19 @@ process_received_hello(_Xid, Hello, State) ->
 process_received_v10_echo_request(Xid, EchoRequest, State) ->
     Data = EchoRequest#of_v10_echo_request.data,
     EchoReply = #of_v10_echo_reply{data = Data},
-    ConnectionPid = State#of_switch_state.connection_pid,
-    ok = of_connection:send(ConnectionPid, Xid, EchoReply),
-    %% TODO: liveness checking (not here probably - more general)
-    {noreply, State}.
+    State1 = send_message(Xid, EchoReply, State),
+    {noreply, State1}.
+
+process_received_v10_echo_reply(_Xid, EchoReply, State) ->
+    %% @@@ Verify xid
+    %% Be tolerant; only log a message if the reply data is not empty
+    case EchoReply#of_v10_echo_reply.data of
+        << >> -> nop;
+        Data  -> io:format("of_switch: echo reply contains unexpected data ~w~n", [Data])
+    end,
+    State1 = stop_receive_echo_reply_timer(State),
+    State2 = start_send_echo_request_timer(State1),
+    {noreply, State2}.
 
 process_received_unknown_message(_Xid, Message, State) ->
     %% TODO: add missing messages
