@@ -28,22 +28,21 @@
           next_local_xid,
           receive_hello_timer,
           send_echo_request_timer,
-          receive_echo_reply_timer    %% TODO: This should go away
+          pending_requests
          }).
 
-%% TODO: Use this
 -record(pending_request, {
           xid,
-          timer
+          timer,
+          process_reply_fun
          }).
 
 -define(MAX_UINT32, 4294967295).
 
 %% TODO: Make all of these configurable. 
-%% TODO: Have configurable option to only send echo requests in the absence of other received messages.
 -define(SEND_ECHO_REQUEST_INTERVAL_MSECS, 30000).
--define(RECEIVE_ECHO_REPLY_TIMEOUT_MSECS, 1000).
 -define(RECEIVE_HELLO_TIMEOUT_MSECS, 1000).
+-define(RECEIVE_REPLY_TIMEOUT_MSECS, 1000).
 
 %%
 %% Exported functions.
@@ -72,7 +71,7 @@ init([]) ->
                              next_local_xid           = 1,
                              receive_hello_timer      = undefined,
                              send_echo_request_timer  = undefined,
-                             receive_echo_reply_timer = undefined},
+                             pending_requests         = dict:new()},
     {ok, State}.
 
 handle_call({connect, IpAddress, TcpPort}, _From, State) ->
@@ -102,8 +101,8 @@ handle_info(timer_expired_receive_hello, State) ->
 handle_info(timer_expired_send_echo_request, State) ->
     process_timer_expired_send_echo_request(State);
 
-handle_info(timer_expired_receive_echo_reply, State) ->
-    process_timer_expired_receive_echo_reply(State);
+handle_info({timer_expired_receive_reply, Xid}, State) ->
+    process_timer_expired_receive_reply(Xid, State);
 
 handle_info(Info, State) ->
     io:format("of_switch: info Info=~w~n", [Info]),
@@ -177,15 +176,12 @@ start_send_echo_request_timer(State) ->
 %%     stop_timer(State#of_switch_state.send_echo_request_timer),
 %%     State#of_switch_state{send_echo_request_timer = undefined}.
 
-start_receive_echo_reply_timer(State) ->
-    Timer = start_timer(State#of_switch_state.receive_echo_reply_timer,
-                        ?RECEIVE_ECHO_REPLY_TIMEOUT_MSECS, 
-                        timer_expired_receive_echo_reply),
-    State#of_switch_state{receive_echo_reply_timer = Timer}.
 
-stop_receive_echo_reply_timer(State) ->
-    stop_timer(State#of_switch_state.receive_echo_reply_timer),
-    State#of_switch_state{receive_echo_reply_timer = undefined}.
+send_message(Xid, Message, State) ->
+    io:format("of_switch: send message Xid=~w Message=~w~n", [Xid, Message]),
+    ConnectionPid = State#of_switch_state.connection_pid,
+    ok = of_connection:send(ConnectionPid, Xid, Message),
+    State.
 
 allocate_xid(State) ->
     Xid = State#of_switch_state.next_local_xid,
@@ -196,20 +192,40 @@ allocate_xid(State) ->
     State1 = State#of_switch_state{next_local_xid = NextXid},
     {Xid, State1}.
 
-send_message(Xid, Message, State) ->
-    io:format("of_switch: send message Xid=~w Message=~w~n", [Xid, Message]),
-    ConnectionPid = State#of_switch_state.connection_pid,
-    ok = of_connection:send(ConnectionPid, Xid, Message),
-    State.
-    
+add_pending_request(Xid, State, ProcessReplyFun) ->
+    Message = {timer_expired_receive_reply, Xid},
+    {ok, Timer} = timer:send_after(?RECEIVE_REPLY_TIMEOUT_MSECS, Message),
+    PendingRequest = #pending_request{xid               = Xid, 
+                                      timer             = Timer, 
+                                      process_reply_fun = ProcessReplyFun},
+    PendingRequests = State#of_switch_state.pending_requests,
+    PendingRequests1 = dict:store(Xid, PendingRequest, PendingRequests),
+    State#of_switch_state{pending_requests = PendingRequests1}.
+
+extract_pending_request(Xid, State) ->
+    PendingRequests = State#of_switch_state.pending_requests,
+    case dict:is_key(Xid, PendingRequests) of
+        true ->
+            PendingRequest = dict:fetch(Xid, PendingRequests),
+            PendingRequests1 = dict:erase(Xid, PendingRequests),
+            State1 = State#of_switch_state{pending_requests = PendingRequests1},
+            {PendingRequest, State1};
+        false ->
+            {undefined, State}
+    end.
+
+send_request(Message, ProcessReplyFun, State) ->
+    {Xid, State1} = allocate_xid(State),
+    State2 = add_pending_request(Xid, State1, ProcessReplyFun),
+    send_message(Xid, Message, State2).
+
 send_hello(State) ->
     Hello = #of_vxx_hello{version = ?OF_VERSION_MAX},
     send_message(_Xid = 0, Hello, State).
 
-send_echo_request(State) ->
+send_v10_echo_request(State) ->
     EchoRequest = #of_v10_echo_request{data = << >>},
-    {Xid, State1} = allocate_xid(State),
-    send_message(Xid, EchoRequest, State1).
+    send_request(EchoRequest, fun process_received_v10_echo_reply/3, State).
 
 send_error_incompatible(State) ->
     Error = #of_vxx_error{version = ?OF_VERSION_MIN,
@@ -221,7 +237,7 @@ send_error_incompatible(State) ->
 process_connection_up(State) ->
     State1 = send_hello(State),
     State2 = start_receive_hello_timer(State1),
-    start_send_echo_request_timer(State2).
+    start_send_echo_request_timer(State2).     %% TODO This depends on version negotiation
 
 %% process_connection_down(State) ->
 %%     %% TODO
@@ -235,15 +251,14 @@ process_timer_expired_receive_hello(State) ->
 
 process_timer_expired_send_echo_request(State) ->
     State1 = State#of_switch_state{send_echo_request_timer = undefined},
-    State2 = send_echo_request(State1),
-    State3 = start_receive_echo_reply_timer(State2),
-    {noreply, State3}.
+    State2 = send_v10_echo_request(State1),    %% TODO: This depends on negotiated verion
+    {noreply, State2}.
 
-process_timer_expired_receive_echo_reply(State) ->
-    State1 = State#of_switch_state{receive_echo_reply_timer = undefined},
-    io:format("of_switch: no echo reply received from peer, closing connection~n"),
-    State2 = close_connection(State1),
-    {stop, no_echo_reply_received, State2}.
+process_timer_expired_receive_reply(Xid, State) ->
+    %% TODO: look up the Xid and determine what to do
+    io:format("of_switch: no reply received from peer for Xid=~w, closing connection~n", [Xid]),
+    State1 = close_connection(State),
+    {stop, no_reply_received, State1}.
 
 process_received_message(Xid, Message, State) ->
     io:format("of_switch: receive message Xid=~w Message=~w~n", [Xid, Message]),
@@ -283,7 +298,7 @@ process_received_subsequent_message(Xid, Message, State) ->
     if
         is_record(Message, of_vxx_hello)        -> process_received_hello(Xid, Message, State);
         is_record(Message, of_v10_echo_request) -> process_received_v10_echo_request(Xid, Message, State);
-        is_record(Message, of_v10_echo_reply)   -> process_received_v10_echo_reply(Xid, Message, State);
+        is_record(Message, of_v10_echo_reply)   -> process_received_reply(Xid, Message, State);
         true                                    -> process_received_unknown_message(Xid, Message, State)
     end.
 
@@ -298,16 +313,26 @@ process_received_v10_echo_request(Xid, EchoRequest, State) ->
     State1 = send_message(Xid, EchoReply, State),
     {noreply, State1}.
 
+process_received_reply(Xid, Reply, State) ->
+    {PendingRequest, State1} = extract_pending_request(Xid, State),
+    case PendingRequest of
+        undefined ->
+            io:format("of_switch: received unsolicited or late reply Xid=~w Reply=~w~n", [Xid, Reply]),
+            {noreply, State1};
+        _ ->
+            #pending_request{timer = Timer, process_reply_fun = ProcessReplyFun} = PendingRequest,
+            timer:cancel(Timer),
+            ProcessReplyFun(Xid, Reply, State1)
+    end.
+
 process_received_v10_echo_reply(_Xid, EchoReply, State) ->
-    %% @@@ Verify xid
-    %% Be tolerant; only log a message if the reply data is not empty
+    %% Be tolerant; accept echo reply with data which does not match echo request
     case EchoReply#of_v10_echo_reply.data of
         << >> -> nop;
         Data  -> io:format("of_switch: echo reply contains unexpected data ~w~n", [Data])
     end,
-    State1 = stop_receive_echo_reply_timer(State),
-    State2 = start_send_echo_request_timer(State1),
-    {noreply, State2}.
+    State1 = start_send_echo_request_timer(State),
+    {noreply, State1}.
 
 process_received_unknown_message(_Xid, Message, State) ->
     %% TODO: add missing messages
