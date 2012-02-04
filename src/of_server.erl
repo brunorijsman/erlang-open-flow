@@ -66,8 +66,6 @@ handle_call(stop, _From, State) ->
     {stop, normal, stopped, State}.
 
 handle_cast({accepted, Socket}, State) ->
-    {ok, {Address, Port}} = inet:peername(Socket),
-    ?DEBUG("incoming connection accepted from ~w:~w", [Address, Port]),
     HandleConnection = State#of_server_state.handle_connection,
     ok = HandleConnection(Socket),
     {noreply, State};
