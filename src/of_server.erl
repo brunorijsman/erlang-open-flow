@@ -16,6 +16,7 @@
          code_change/3]).
 
 -include_lib("eunit/include/eunit.hrl").
+-include_lib("include/of_log.hrl").
 
 -record(of_server_state, {
           listen_port,
@@ -57,7 +58,7 @@ init(State) ->
 
 handle_call(stop, _From, State) ->
     case State#of_server_state.listen_socket of
-        undefined ->
+        undefined -> 
             nop;
         Socket ->
             gen_tcp:close(Socket)
@@ -66,21 +67,21 @@ handle_call(stop, _From, State) ->
 
 handle_cast({accepted, Socket}, State) ->
     {ok, {Address, Port}} = inet:peername(Socket),
-    io:format("OpenFlow incoming connection accepted from ~w:~w~n", [Address, Port]),
+    ?DEBUG("incoming connection accepted from ~w:~w", [Address, Port]),
     HandleConnection = State#of_server_state.handle_connection,
     ok = HandleConnection(Socket),
     {noreply, State};
 
 handle_cast({'EXIT', From, Reason}, State) ->
-    io:format("of_server: received EXIT from ~w for reason ~w~n", [From, Reason]),
+    ?DEBUG("received EXIT from ~w for reason ~w", [From, Reason]),
     {noreply, State};
 
 handle_cast(Cast, State) ->
-    io:format("of_server: received cast ~w~n", [Cast]),
+    ?DEBUG("received cast ~w", [Cast]),
     {noreply, State}.
 
 handle_info(Info, State) ->
-    io:format("of_server: received info ~w~n", [Info]),
+    ?DEBUG("received info ~w", [Info]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->
@@ -108,7 +109,7 @@ initial_state(Args) ->
     ListenPort = State2#of_server_state.listen_port,
     case gen_tcp:listen(ListenPort, TcpOptions) of
         {ok, ListenSocket} ->
-            io:format("OpenFlow server listening on port ~w~n", [ListenPort]),
+            ?DEBUG("listening on port ~w", [ListenPort]),
             State2#of_server_state{listen_socket = ListenSocket};
         {error, Reason} ->
             erlang:error(Reason)

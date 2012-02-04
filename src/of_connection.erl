@@ -129,11 +129,12 @@ handle_call(close, _From, State) ->
     {reply, ok, State1};
 
 handle_call({send, Xid, MessageRec}, _From, State) ->
-%% TODO    io:format("of_connection: send xid=~w message=~w~n", [Xid, MessageRec]),
     MessageBin = of_v10_encoder:encode(MessageRec, Xid),
     Socket = State#of_connection_state.socket,
-    ok = gen_tcp:send(Socket, MessageBin),    %% TODO: handle send failure. Async send?
-    {reply, ok, State}.
+    case gen_tcp:send(Socket, MessageBin) of
+        ok -> {reply, ok, State}
+                  %% @@@ TODO handle errors
+    end.
     
 handle_cast(_Cast, State) ->
     %% TODO: Is ignoring unexpected casts (and infos) the right thing to do?
@@ -204,7 +205,6 @@ consume_body(BodyBin, State) ->
                          receiver_pid    = ReceiverPid} = State,
     #of_v10_header{type = MessageType, xid = Xid} = HeaderRec,
     MessageRec = of_v10_decoder:decode_body(MessageType, BodyBin),
-%% TODO    io:format("of_connection: receive Xid=~w Message=~w ReceiverPid=~w~n", [Xid, MessageRec, ReceiverPid]),
     ReceiverPid ! {of_receive_message, Xid, MessageRec},
     State#of_connection_state{receive_state    = header,
                               receive_need_len = ?OF_HEADER_LEN,

@@ -21,6 +21,7 @@
 
 -include_lib("../include/of.hrl").
 -include_lib("../include/of_v10.hrl").
+-include_lib("../include/of_log.hrl").
 
 -record(of_switch_state, {
           connection_pid,
@@ -75,21 +76,21 @@ init([]) ->
     {ok, State}.
 
 handle_call({connect, IpAddress, TcpPort}, _From, State) ->
-    io:format("of_switch: connect IpAddress=~w TcpPort=~w~n", [IpAddress, TcpPort]),
+    ?DEBUG("connect IpAddress=~w TcpPort=~w", [IpAddress, TcpPort]),
     State1 = initiate_connection(IpAddress, TcpPort, State),
     {reply, ok, State1};
 
 handle_call({accept, Socket}, _From, State) ->
-    io:format("of_switch: accept Socket=~w~n", [Socket]),
+    ?DEBUG("accept Socket=~w", [Socket]),
     State1 = accept_connection(Socket, State),
     {reply, ok, State1};
 
 handle_call(stop, _From, State) ->
-    io:format("of_switch: stop~n"),
+    ?DEBUG("stop"),
     {stop, normal, stopped, State}.
 
 handle_cast(Cast, State) ->
-    io:format("of_switch: cast Cast=~w~n", [Cast]),
+    ?DEBUG("cast Cast=~w", [Cast]),
     {noreply, State}.
 
 handle_info({of_receive_message, Xid, Message}, State) ->
@@ -105,15 +106,15 @@ handle_info({timer_expired_receive_reply, Xid}, State) ->
     process_timer_expired_receive_reply(Xid, State);
 
 handle_info(Info, State) ->
-    io:format("of_switch: info Info=~w~n", [Info]),
+    ?DEBUG("info Info=~w", [Info]),
     {noreply, State}.
 
 terminate(Reason, _State) ->
-    io:format("of_switch: terminate Reason=~w~n", [Reason]),
+    ?DEBUG("terminate Reason=~w", [Reason]),
     ok.
 
 code_change(OldVersion, State, _Extra) ->
-    io:format("of_switch: code_change OldVersion=~w~n", [OldVersion]),
+    ?DEBUG("code_change OldVersion=~w", [OldVersion]),
     {ok, State}.
 
 %%                 
@@ -178,7 +179,7 @@ start_send_echo_request_timer(State) ->
 
 
 send_message(Xid, Message, State) ->
-    io:format("of_switch: send message Xid=~w Message=~w~n", [Xid, Message]),
+    ?DEBUG("send message Xid=~w Message=~w", [Xid, Message]),
     ConnectionPid = State#of_switch_state.connection_pid,
     ok = of_connection:send(ConnectionPid, Xid, Message),
     State.
@@ -252,7 +253,7 @@ process_connection_up(State) ->
 
 process_timer_expired_receive_hello(State) ->
     State1 = State#of_switch_state{receive_hello_timer = undefined},
-    io:format("of_switch: no hello received from peer, closing connection~n"),
+    ?DEBUG("no hello received from peer, closing connection"),
     State2 = close_connection(State1),
     {stop, no_hello_received, State2}.
 
@@ -263,12 +264,12 @@ process_timer_expired_send_echo_request(State) ->
 
 process_timer_expired_receive_reply(Xid, State) ->
     %% TODO: look up the Xid and determine what to do
-    io:format("of_switch: no reply received from peer for Xid=~w, closing connection~n", [Xid]),
+    ?DEBUG("no reply received from peer for Xid=~w, closing connection", [Xid]),
     State1 = close_connection(State),
     {stop, no_reply_received, State1}.
 
 process_received_message(Xid, Message, State) ->
-    io:format("of_switch: receive message Xid=~w Message=~w~n", [Xid, Message]),
+    ?DEBUG("receive message Xid=~w Message=~w", [Xid, Message]),
     case State#of_switch_state.version of
         undefined -> process_received_initial_message(Xid, Message, State);
         _         -> process_received_subsequent_message(Xid, Message, State)
@@ -285,11 +286,11 @@ process_received_initial_hello(_Xid, Hello, State) ->
     Version = Hello#of_vxx_hello.version,
     if
         (Version >= ?OF_VERSION_MIN) andalso (Version =< ?OF_VERSION_MAX) ->
-            io:format("of_switch: version negotiation succeeded Version=~w~n", [Version]),
+            ?DEBUG("version negotiation succeeded Version=~w", [Version]),
             State2 = State#of_switch_state{version = Version},
             {noreply, State2};
         true ->
-            io:format("of_switch: version negotiation failed Version=~w~n", [Version]),
+            ?DEBUG("version negotiation failed Version=~w", [Version]),
             State2 = send_error_incompatible(State1),
             State3 = close_connection(State2),
             %% TODO: This causes a "=ERROR REPORT===="; can that be avoided?
@@ -330,7 +331,7 @@ process_received_subsequent_message(Xid, Message, State) ->
 
 process_received_hello(_Xid, Hello, State) ->
     %% Be tolerant: allow peer to send hello message as non-initial message (ignore it)
-    io:format("of_switch: peer unexpectedly sent non-initial hello message Hello=~w~n", [Hello]),
+    ?DEBUG("peer unexpectedly sent non-initial hello message Hello=~w", [Hello]),
     {noreply, State}.
 
 process_received_v10_echo_request(Xid, EchoRequest, State) ->
@@ -343,7 +344,7 @@ process_received_reply(Xid, Reply, State) ->
     {PendingRequest, State1} = extract_pending_request(Xid, State),
     case PendingRequest of
         undefined ->
-            io:format("of_switch: received unsolicited or late reply Xid=~w Reply=~w~n", [Xid, Reply]),
+            ?DEBUG("received unsolicited or late reply Xid=~w Reply=~w", [Xid, Reply]),
             {noreply, State1};
         _ ->
             #pending_request{timer = Timer, process_reply_fun = ProcessReplyFun} = PendingRequest,
@@ -355,7 +356,7 @@ process_received_v10_echo_reply(_Xid, EchoReply, State) ->
     %% Be tolerant; accept echo reply with data which does not match echo request
     case EchoReply#of_v10_echo_reply.data of
         << >> -> nop;
-        Data  -> io:format("of_switch: echo reply contains unexpected data ~w~n", [Data])
+        Data  -> ?DEBUG("echo reply contains unexpected data ~w", [Data])
     end,
     State1 = start_send_echo_request_timer(State),
     {noreply, State1}.
@@ -366,15 +367,15 @@ process_received_v10_features_reply(_Xid, _FeaturesReply, State) ->
 
 process_received_unknown_message(_Xid, Message, State) ->
     %% TODO: add missing messages
-    io:format("of_switch: received unknown message Message=~w~n", [Message]),
+    ?DEBUG("received unknown message Message=~w", [Message]),
     {noreply, State}.
 
 process_received_unexpected_from_switch_message(_Xid, Message, State) ->
-    io:format("of_switch: received unexpected message from switch Message=~w~n", [Message]),
+    ?DEBUG("received unexpected message from switch Message=~w", [Message]),
     {noreply, State}.
 
 process_received_unimplemented_message(_Xid, Message, State) ->
     %% TODO: this goes away once all messages are implemented
-    io:format("of_switch: received unimplemented message Message=~w~n", [Message]),
+    ?DEBUG("received unimplemented message Message=~w", [Message]),
     {noreply, State}.
 

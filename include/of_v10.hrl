@@ -221,7 +221,7 @@
            CurrentFeatures    : 4/binary,
            AdvertisedFeatures : 4/binary,
            SupportedFeatures  : 4/binary,
-           PeerFeatures       : 4/binary >>.
+           PeerFeatures       : 4/binary >>).
 
 -define(OF_V10_CAPABILITIES_PATTERN, 
         << _Reserved1 : 24,
@@ -345,64 +345,64 @@
            IdleTimeout  : 16,
            _Pad2        : 16,
            PacketCount  : 64,
-           ByteCount    : 64 >>.
+           ByteCount    : 64 >>).
 
 -define(OF_V10_PORT_STATUS_PATTERN,
         << Reason : 8,
            _Pad   : 56,
-           Desc   : 48/binary >>.
+           Desc   : 48/binary >>).
 
 -define(OF_V10_ACTION_HEADER_LEN, 4).
 
 -define(OF_V10_ACTIONS_PATTERN,
         << Type : 16,
            Len  : 16,
-           Rest/binary >>.
+           Rest/binary >>).
 
 -define(OF_V10_ACTION_OUTPUT_PATTERN,
         << Port   : 16,
-           MaxLen : 16 >>.
+           MaxLen : 16 >>).
 
 -define(OF_V10_ACTION_SET_VLAN_VID_PATTERN,
         << VlanVid : 16,
-           _Pad    : 16 >>.
+           _Pad    : 16 >>).
 
 -define(OF_V10_ACTION_SET_VLAN_PCP_PATTERN,
         << VlanPcp : 8,
-           _Pad    : 24 >>.
+           _Pad    : 24 >>).
 
 -define(OF_V10_ACTION_STRIP_VLAN_PATTERN,
-        << _Pad : 32 >>.
+        << _Pad : 32 >>).
 
 -define(OF_V10_ACTION_SET_DL_ADDR_PATTERN,
         << DlAddr : ?OF_V10_ETH_ALEN/binary-unit:8,
-           _Pad   : 48 >>.
+           _Pad   : 48 >>).
 
 -define(OF_V10_ACTION_SET_NW_ADDR_PATTERN,
-        << NwAddr : 32 >>.
+        << NwAddr : 32 >>).
 
 -define(OF_V10_ACTION_SET_NW_TOS_PATTERN,
         << NwTos : 8,
-           _Pad  : 24 >>.
+           _Pad  : 24 >>).
 
 -define(OF_V10_ACTION_SET_TP_PORT_PATTERN,
         << TpPort : 16,
-           _Pad   : 16 >>.
+           _Pad   : 16 >>).
 
 -define(OF_V10_ACTION_ENQUEUE_PATTERN,
         << Port    : 16,
            _Pad    : 48,
-           QueueId : 32 >>.
+           QueueId : 32 >>).
 
 -define(OF_V10_ACTION_VENDOR_PATTERN,
-        << Vendor : 32 >>.
+        << Vendor : 32 >>).
 
 -define(OF_V10_PACKET_OUT_PATTERN,
         << BufferId   : 32,
            InPort     : 16,
            ActionsLen : 16,
            Actions    : ActionsLen/binary-unit:8,
-           Data/binary >>.
+           Data/binary >>).
 
 -define(OF_V10_FLOW_MOD_PATTERN,
         << Match        : 40/binary,
@@ -417,7 +417,7 @@
            Emerg        : 1,
            CheckOverlap : 1, 
            SendFlowRem  : 1,
-           Actions/binary >>.
+           Actions/binary >>).
 
 -define(OF_V10_PORT_MOD_PATTERN,
         << PortNo    : 16,
@@ -425,12 +425,12 @@
            Config    : 4/binary,
            Mask      : 4/binary,
            Advertise : 4/binary,
-           _Pad      : 32 >>.
+           _Pad      : 32 >>).
 
 -define(OF_V10_STATS_REQUEST_PATTERN,
         << Type   : 16,
            _Flags : 16, 
-           Body/binary >>.
+           Body/binary >>).
 
 -define(OF_V10_DESC_STATS_REQUEST_PATTERN, << >>).
 
@@ -438,41 +438,41 @@
         << Match   : 40/binary,
            TableId : 8,
            _Pad    : 8,
-           OutPort : 16 >>.
+           OutPort : 16 >>).
 
 -define(OF_V10_AGGREGATE_STATS_REQUEST_PATTERN,
         << Match   : 40/binary,
            TableId : 8,
            _Pad    : 8,
-           OutPort : 16 >>.
+           OutPort : 16 >>).
 
 -define(OF_V10_TABLE_STATS_REQUEST_PATTERN, << >>).
 
 -define(OF_V10_PORT_STATS_REQUEST_PATTERN,
         << PortNo : 16,
-           _Pad   : 48 >>.
+           _Pad   : 48 >>).
 
 -define(OF_V10_QUEUE_STATS_REQUEST_PATTERN,
         << PortNo  : 16,
            _Pad    : 16,
-           QueueId : 32 >>.
+           QueueId : 32 >>).
 
 -define(OF_V10_VENDOR_STATS_REQUEST_PATTERN,
         << VendorId : 32,
-           Body/binary >>.
+           Body/binary >>).
 
 -define(OF_V10_STATS_REPLY_PATTERN,
         << Type      : 16,
            _Reserved : 15,
            More      : 1,
-           Body/binary >>.
+           Body/binary >>).
 
 -define(OF_V10_DESC_STATS_REPLY_PATTERN,
         << MfrDesc   : ?OF_V10_DESC_STR_LEN/binary-unit:8,
            HwDesc    : ?OF_V10_DESC_STR_LEN/binary-unit:8,
            SwDesc    : ?OF_V10_DESC_STR_LEN/binary-unit:8,
            SerialNum : ?OF_V10_SERIAL_NUM_LEN/binary-unit:8,
-           DpDesc    : ?OF_V10_DESC_STR_LEN/binary-unit:8 >>.
+           DpDesc    : ?OF_V10_DESC_STR_LEN/binary-unit:8 >>).
 
 -define(OF_V10_FLOW_STATS_REPLY_LEN_WITHOUT_ACTIONS, 88).
 
@@ -490,13 +490,13 @@
            Cookie       : 64,
            PacketCount  : 64,
            ByteCount    : 64,
-           Actions/binary >>.           
+           Actions/binary >>).           
 
 -define(OF_V10_AGGREGATE_STATS_REPLY_PATTERN,
         << PacketCount : 64,
            ByteCount   : 64,
            FlowCount   : 32,
-           _Pad        : 32 >>.
+           _Pad        : 32 >>).
 
 -define(OF_V10_TABLE_STATS_REPLY_PATTERN,
         << TableId      : 8,
@@ -506,7 +506,7 @@
            MaxEntries   : 32,
            ActiveCount  : 32,
            LookupCount  : 64,
-           MatchedCount : 64 >>.
+           MatchedCount : 64 >>).
 
 -define(OF_V10_PORT_STATS_REPLY_PATTERN,
         << PortNo     : 16,
@@ -522,7 +522,7 @@
            RxFrameErr : 64,
            TxOverErr  : 64,
            RxCrcErr   : 64,
-           Collisions : 64 >>.
+           Collisions : 64 >>).
 
 -define(OF_V10_QUEUE_STATS_REPLY_PATTERN,
         << PortNo    : 16,
@@ -530,11 +530,11 @@
            QueueId   : 32,
            TxBytes   : 64,
            TxPackets : 64,
-           TxErrors  : 64 >>.
+           TxErrors  : 64 >>).
 
 -define(OF_V10_VENDOR_STATS_REPLY_PATTERN,
         << VendorId : 32,
-           Body/binary >>.
+           Body/binary >>).
 
 -define(OF_V10_BARRIER_REQUEST_PATTERN, << >>).
 
@@ -542,30 +542,30 @@
 
 -define(OF_V10_QUEUE_GET_CONFIG_REQUEST_PATTERN,
         << Port : 16,
-           _Pad : 16 >>.
+           _Pad : 16 >>).
 
 -define(OF_V10_QUEUE_GET_CONFIG_REPLY_PATTERN,
         << Port : 16,
            _Pad : 16,
-           Queues/binary >>.
+           Queues/binary >>).
 
 -define(OF_V10_QUEUES_PATTERN,
         << QueueId    : 32,
            Len        : 16,
            _Pad       : 16,
-           Rest/binary >>.
+           Rest/binary >>).
 
 -define(OF_V10_QUEUE_PROPERTIES_PATTERN,
         << Type : 16,
            Len  : 16,
            _Pad : 32,
-           Rest/binary >>.
+           Rest/binary >>).
 
 -define(OF_V10_QUEUE_PROPERTY_NONE_PATTERN, << >>).
 
 -define(OF_V10_QUEUE_PROPERTY_MIN_RATE_PATTERN,
         << Rate : 16,
-           _Pad : 48 >>.
+           _Pad : 48 >>).
 
 -type of_v10_version() :: ?OF_V10_VERSION.
 
