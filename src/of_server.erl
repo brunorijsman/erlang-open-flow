@@ -1,6 +1,9 @@
 %% @Author Bruno Rijsman <brunorijsman@hotmail.com>
 %% @copyright 2012 Bruno Rijsman
 
+%% TODO: Add support for IPv6
+%% TODO: Add support for SSL
+
 -module(of_server).
 
 -behavior(gen_server).
@@ -22,7 +25,8 @@
           listen_port,
           listen_socket,
           acceptor_pid,
-          handle_connection
+          handle_connection,    %% TODO: Do this with parse transform stubbing instead
+          switches
          }).
 
 -define(DEFAULT_LISTEN_PORT, 6636).
@@ -50,25 +54,42 @@ stop(Pid) ->
 
 init(State) ->
     process_flag(trap_exit, true),
+    #of_server_state{listen_socket = ListenSocket} = State,
     ServerPid = self(),
-    ListenSocket = State#of_server_state.listen_socket,
     AcceptorPid = spawn_link(fun() -> accept_loop(ServerPid, ListenSocket) end),
     State1 = State#of_server_state{acceptor_pid = AcceptorPid},
+    ok = of_group:create(of_switch),
     {ok, State1}.
 
 handle_call(stop, _From, State) ->
-    case State#of_server_state.listen_socket of
+    ?DEBUG("stop"),
+    of_group:delete(of_switch),
+    #of_server_state{listen_socket = ListenSocket, switches = Switches} = State,
+    case ListenSocket of
         undefined -> 
             nop;
         Socket ->
             gen_tcp:close(Socket)
     end,
+    lists:foreach(fun(Pid) -> of_switch:stop(Pid) end, Switches),
     {stop, normal, stopped, State}.
 
+%% @@ TODO: Also handle removing switches and reporting a corresponding event
+%% @@ TODO: Also do some of this processing for outgoing connections
+
 handle_cast({accepted, Socket}, State) ->
-    HandleConnection = State#of_server_state.handle_connection,
-    ok = HandleConnection(Socket),
-    {noreply, State};
+    #of_server_state{handle_connection = HandleConnection, switches = Switches} = State,
+    {ok, SwitchPid} = HandleConnection(Socket),
+    %% TODO: Handle this differently and get rid of the undefined case
+    State1 = case SwitchPid of
+                 undefined ->
+                     State;
+                 _ ->
+                     of_group:send(of_switch, {of_switch, add, SwitchPid}),
+                     Switches1 = [SwitchPid | Switches],
+                     State#of_server_state{switches = Switches1}
+                 end,
+    {noreply, State1};
 
 handle_cast({'EXIT', From, Reason}, State) ->
     ?DEBUG("received EXIT from ~w for reason ~w", [From, Reason]),
@@ -82,7 +103,8 @@ handle_info(Info, State) ->
     ?DEBUG("received info ~w", [Info]),
     {noreply, State}.
 
-terminate(_Reason, _State) ->
+terminate(Reason, _State) ->
+    ?DEBUG("terminate Reason=~w", [Reason]),
     ok.
 
 code_change(_OldVersion, State, _Extra) ->
@@ -96,7 +118,8 @@ initial_state(Args) ->
     State1 = #of_server_state{listen_port       = ?DEFAULT_LISTEN_PORT,
                               listen_socket     = undefined,
                               acceptor_pid      = undefined,
-                              handle_connection = fun handle_connection/1},
+                              handle_connection = fun handle_connection/1,
+                              switches          = []},
     State2 = parse_args(Args, State1),
     TcpOptions = [binary, 
                   {packet, raw}, 
@@ -129,7 +152,7 @@ handle_connection(Socket) ->
     %% Don't crash if switch doesn't start -- log something instead
     {ok, SwitchPid} = of_switch:start_link(),
     ok = of_switch:accept(SwitchPid, Socket),
-    ok.
+    {ok, SwitchPid}.
     
 accept_loop(ServerPid, ListenSocket) ->
     case gen_tcp:accept(ListenSocket) of
@@ -141,13 +164,14 @@ accept_loop(ServerPid, ListenSocket) ->
             exit({accept_error, Reason})
     end.
 
+
 %%
 %% Unit tests.
 %%
 
 test_handle_connection(Socket, TestPid) ->
     TestPid ! {connection, Socket},
-    ok.
+    {ok, undefined}.
 
 start_link_and_stop_test() ->
     StartLinkResult = start_link([]),

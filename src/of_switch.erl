@@ -75,6 +75,7 @@ init([]) ->
                              receive_hello_timer      = undefined,
                              send_echo_request_timer  = undefined,
                              pending_requests         = dict:new()},
+    of_group:send(of_switch, {of_switch, add, self()}),
     {ok, State}.
 
 handle_call({connect, IpAddress, TcpPort}, _From, State) ->
@@ -112,6 +113,7 @@ handle_info(Info, State) ->
 
 terminate(Reason, State) ->
     debug_switch("terminate Reason=~w", [Reason], State),
+    of_group:send(of_switch, {of_switch, remove, self()}),
     ok.
 
 code_change(OldVersion, State, _Extra) ->
