@@ -5,7 +5,9 @@
 
 -export([create/1,
          delete/1,
-         send/2]).
+         send/2,
+         join/2,
+         leave/2]).
 
 -include_lib("include/of_log.hrl").
 
@@ -13,19 +15,28 @@
 %% Exported functions.
 %%
 
-create(Name) ->
-    ?DEBUG_KEY([{name, Name}], "create"),
-    pg2:create(Name).
+create(Group) ->
+    ?DEBUG_KEY([{group, Group}], "create"),
+    pg2:create(Group).
 
-delete(Name) ->
-    ?DEBUG_KEY([{name, Name}], "delete"),
-    pg2:delete(Name).
+delete(Group) ->
+    ?DEBUG_KEY([{group, Group}], "delete"),
+    pg2:delete(Group).
 
-send(Name, Message) ->
-    ?DEBUG_KEY([{name, Name}], "send Message=~w", [Message]),
-    case pg2:get_members(Name) of
+send(Group, Message) ->
+    ?DEBUG_KEY([{group, Group}], "send Message=~w", [Message]),
+    case pg2:get_members(Group) of
         {error, Reason} ->
             {error, Reason};
         Pids ->
             lists:foreach(fun(Pid) -> send(Pid, Message) end, Pids)
     end.
+
+join(Group, Pid) ->
+    ?DEBUG_KEY([{group, Group}], "join Pid=~w", [Pid]),
+    pg2:join(Group, Pid).
+    
+leave(Group, Pid) ->
+    ?DEBUG_KEY([{group, Group}], "leave Pid=~w", [Pid]),
+    pg2:leave(Group, Pid).
+

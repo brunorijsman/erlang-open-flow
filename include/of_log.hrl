@@ -1,7 +1,7 @@
 -ifndef(OF_LOG).
 -define(OF_LOG, true).
 
--define(LOG(Level, Keys, Format, Args), of_log:log(?MODULE, Level, Keys, Format, Args)).
+-define(LOG(Level, Keys, Format, Args), of_logger:log(Level, ?MODULE, Keys, Format, Args)).
 -define(DEBUG(Message), ?LOG(debug, [], Message, [])).
 -define(DEBUG(Format, Args), ?LOG(debug, [], Format, Args)).
 -define(DEBUG_KEY(Keys, Message), ?LOG(debug, Keys, Message, [])).

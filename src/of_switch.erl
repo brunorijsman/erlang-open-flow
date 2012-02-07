@@ -75,7 +75,6 @@ init([]) ->
                              receive_hello_timer      = undefined,
                              send_echo_request_timer  = undefined,
                              pending_requests         = dict:new()},
-    of_group:send(of_switch, {of_switch, add, self()}),
     {ok, State}.
 
 handle_call({connect, IpAddress, TcpPort}, _From, State) ->
