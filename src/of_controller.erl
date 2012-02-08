@@ -50,11 +50,11 @@ start_link(Args) ->
 stop(ControllerPid) ->
     gen_server:call(ControllerPid, stop).
 
-subscribe(ControllerPid, Event) ->
-    gen_server:call(ControllerPid, {subscribe, Event}).
+subscribe(ControllerPid, Topic) ->
+    gen_server:call(ControllerPid, {subscribe, Topic}).
 
-unsubscribe(ControllerPid, Event) ->
-    gen_server:call(ControllerPid, {unsubscribe, Event}).
+unsubscribe(ControllerPid, Topic) ->
+    gen_server:call(ControllerPid, {unsubscribe, Topic}).
 
 %%                 
 %% gen_server callbacks.
@@ -66,12 +66,12 @@ init(State) ->
     ServerPid = self(),
     AcceptorPid = spawn_link(fun() -> accept_loop(ServerPid, ListenSocket) end),
     State1 = State#of_controller_state{acceptor_pid = AcceptorPid},
-    ok = of_group:create(of_switch),
+    ok = of_events:create_topic(switch),
     {ok, State1}.
 
 handle_call(stop, _From, State) ->
     ?DEBUG("stop"),
-    of_group:delete(of_switch),
+    of_events:delete_topic(switch),
     #of_controller_state{listen_socket = ListenSocket, switches = Switches} = State,
     case ListenSocket of
         undefined -> 
@@ -82,30 +82,30 @@ handle_call(stop, _From, State) ->
     lists:foreach(fun(Pid) -> of_switch:stop(Pid) end, Switches),
     {stop, normal, stopped, State};
 
-handle_call({subscribe, Event = switch}, From, State) ->
+handle_call({subscribe, Topic = switch}, From, State) ->
     {SubscriberPid, _} = From,
-    ?DEBUG("subscribe Event=~w Subscriber=~w", [Event, SubscriberPid]),
-    of_group:join(of_switch, SubscriberPid),
+    ?DEBUG("subscribe Topic=~w Subscriber=~w", [Topic, SubscriberPid]),
+    of_events:subscribe_to_topic(switch, SubscriberPid),
     #of_controller_state{switches = Switches} = State,
-    lists:foreach(fun(Pid) -> SubscriberPid ! {of_event, switch, add, Pid} end, Switches),
+    lists:foreach(fun(SwitchPid) -> of_events:unicast_event(SubscriberPid, switch, add, SwitchPid) end, Switches),
     {reply, ok, State};
 
-handle_call({subscribe, Event}, From, State) ->
-    ?DEBUG("subscribe unknown Event=~w Subscriber=~w", [Event, From]),
-    {reply, {error, unknown_event}, State};
+handle_call({subscribe, Topic}, From, State) ->
+    ?DEBUG("subscribe unknown topic Topic=~w Subscriber=~w", [Topic, From]),
+    {reply, {error, unknown_topic}, State};
 
-handle_call({unsubscribe, Event = switch}, From, State) ->
+handle_call({unsubscribe, Topic = switch}, From, State) ->
     {SubscriberPid, _} = From,
-    ?DEBUG("unsubscribe Event=~w Subscriber=~w", [Event, SubscriberPid]),
-    of_group:leave(of_switch, SubscriberPid),
+    ?DEBUG("unsubscribe Topic=~w Subscriber=~w", [Topic, SubscriberPid]),
+    of_events:unsubscribe_from_topic(owitch, SubscriberPid),
     {reply, ok, State};
 
-handle_call({unsubscribe, Event}, From, State) ->
-    ?DEBUG("unsubscribe unknown Event=~w Subscriber=~w", [Event, From]),
-    {reply, {error, unknown_event}, State}.
+handle_call({unsubscribe, Topic}, From, State) ->
+    ?DEBUG("unsubscribe unknown topic Topic=~w Subscriber=~w", [Topic, From]),
+    {reply, {error, unknown_topic}, State}.
 
-%% @@ TODO: Also handle removing switches and reporting a corresponding event
-%% @@ TODO: Also do some of this processing for outgoing connections
+%% TODO: Also handle removing switches and reporting a corresponding event
+%% TODO: Also do some of this processing for outgoing connections
 handle_cast({accepted, Socket}, State) ->
     #of_controller_state{handle_connection = HandleConnection, switches = Switches} = State,
     {ok, SwitchPid} = HandleConnection(Socket),
@@ -114,7 +114,7 @@ handle_cast({accepted, Socket}, State) ->
                  undefined ->
                      State;
                  _ ->
-                     of_group:send(of_switch, {of_event, switch, add, SwitchPid}),
+                     of_events:multicast_event(switch, add, SwitchPid),
                      Switches1 = [SwitchPid | Switches],
                      State#of_controller_state{switches = Switches1}
                  end,
@@ -192,7 +192,6 @@ accept_loop(ServerPid, ListenSocket) ->
         {error, Reason} ->
             exit({accept_error, Reason})
     end.
-
 
 %%
 %% Unit tests.

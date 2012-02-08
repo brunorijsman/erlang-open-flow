@@ -21,8 +21,9 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
--include_lib("../include/of.hrl").
--include_lib("../include/of_v10.hrl").
+-include_lib("include/of.hrl").
+-include_lib("include/of_v10.hrl").
+-include_lib("include/of_log.hrl").
 
 -record(of_connection_state, {
           socket,
@@ -74,13 +75,18 @@ init([]) ->
     {ok, State}.
 
 handle_call(stop, _From, State) ->
+    ?DEBUG("stop"),
     {stop, normal, stopped, State};
+
+%% TODO: Add address:port->address:port as key to all debug messages
 
 handle_call({connect, _Address, _Port}, _From, State) 
   when State#of_connection_state.socket /= undefined ->
+    ?DEBUG("connect when already connected"),
     {reply, {error, already_connected}, State};
 
 handle_call({connect, Address, Port}, From, State) ->
+    ?DEBUG("connect"),
     Options = [binary, {active, once}],
     case gen_tcp:connect(Address, Port, Options) of
         {ok, Socket} ->
@@ -99,9 +105,11 @@ handle_call({connect, Address, Port}, From, State) ->
 
 handle_call({accept, _Socket}, _From, State) 
   when State#of_connection_state.socket /= undefined ->
+    ?DEBUG("accept when already connected"),
     {reply, {error, already_connected}, State};
 
 handle_call({accept, Socket}, From, State) ->
+    ?DEBUG("accept"),
     ok = inet:setopts(Socket, [{active, once}]),
     {FromPid, _FromTag} = From,
     State1 = State#of_connection_state{
@@ -115,9 +123,11 @@ handle_call({accept, Socket}, From, State) ->
 
 handle_call(close, _From, State) 
   when State#of_connection_state.socket == undefined ->
+    ?DEBUG("close when not connected"),
     {reply, ok, State};
 
 handle_call(close, _From, State) ->
+    ?DEBUG("close"),
     #of_connection_state{socket = Socket} = State,
     ok = gen_tcp:close(Socket),
     State1 = State#of_connection_state{
@@ -129,31 +139,39 @@ handle_call(close, _From, State) ->
     {reply, ok, State1};
 
 handle_call({send, Xid, MessageRec}, _From, State) ->
+    %% ?DEBUG("send"),   TODO: too verbose until we do filtering
     MessageBin = of_v10_encoder:encode(MessageRec, Xid),
     Socket = State#of_connection_state.socket,
     case gen_tcp:send(Socket, MessageBin) of
-        ok -> {reply, ok, State}
-                  %% @@@ TODO handle errors
+        ok -> 
+            {reply, ok, State};
+        {error, Reason} ->
+            {reply, {error, Reason}, State}
     end.
     
-handle_cast(_Cast, State) ->
-    %% TODO: Is ignoring unexpected casts (and infos) the right thing to do?
+handle_cast(Cast, State) ->
+    ?DEBUG("unknown cast Cast=~w", [Cast]),
     {noreply, State}.
 
 handle_info({tcp, Socket, Data}, State)
   when State#of_connection_state.socket == Socket ->
+    %% ?DEBUG("receive"),   TODO: too verbose until we do filtering
     {noreply, receive_data(Data, State)};
 
 handle_info({tcp, _Socket, _Data}, State) ->
+    ?DEBUG("receive when not connected"),
     {noreply, State};
 
-handle_info(_Info, State) ->
+handle_info(Info, State) ->
+    ?DEBUG("unknown info Info=~w", [Info]),
     {noreply, State}.
 
-terminate(_Reason, _State) ->
+terminate(Reason, _State) ->
+    ?DEBUG("terminate Reason=~w", [Reason]),
     ok.
 
-code_change(_OldVersion, State, _Extra) ->
+code_change(OldVersion, State, _Extra) ->
+    ?DEBUG("code_change OldVersion=~w", [OldVersion]),
     {ok, State}.
 
 %%

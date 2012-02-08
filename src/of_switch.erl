@@ -136,16 +136,16 @@ address_and_port_to_name(IpAddress, TcpPort) ->
 initiate_connection(IpAddress, TcpPort, State) ->
     ?assert(State#of_switch_state.connection_pid == undefined),
     Name = address_and_port_to_name(IpAddress, TcpPort),
-    {ok, ConnectionPid} = of_connection:start_link(),
-    ok = of_connection:connect(ConnectionPid, IpAddress, TcpPort),
+    {ok, ConnectionPid} = of_connection:start_link(),                %% TODO: handle errors?
+    ok = of_connection:connect(ConnectionPid, IpAddress, TcpPort),   %% TODO: handle errors
     State1 = State#of_switch_state{name = Name, connection_pid = ConnectionPid},
     process_connection_up(State1).
 
 accept_connection(Socket, State) -> 
     {ok, {IpAddress, TcpPort}} = inet:peername(Socket),
     Name = address_and_port_to_name(IpAddress, TcpPort),
-    {ok, ConnectionPid} = of_connection:start_link(),
-    ok = of_connection:accept(ConnectionPid, Socket),
+    {ok, ConnectionPid} = of_connection:start_link(),                %% TODO: handle errors
+    ok = of_connection:accept(ConnectionPid, Socket),                %% TODO: handle errors
     State1 = State#of_switch_state{name = Name, connection_pid = ConnectionPid},
     debug_switch("incoming connection accepted", State1),
     process_connection_up(State1).
@@ -153,7 +153,7 @@ accept_connection(Socket, State) ->
 close_connection(State) ->
     ConnectionPid = State#of_switch_state.connection_pid,
     ?assert(is_pid(ConnectionPid)),
-    ok = of_connection:close(ConnectionPid),
+    of_connection:close(ConnectionPid),
     of_connection:stop(ConnectionPid),
     State#of_switch_state{connection_pid = undefined, version = undefined}.
 
@@ -193,12 +193,15 @@ start_send_echo_request_timer(State) ->
 %%     stop_timer(State#of_switch_state.send_echo_request_timer),
 %%     State#of_switch_state{send_echo_request_timer = undefined}.
 
-
 send_message(Xid, Message, State) ->
     debug_switch("send message Xid=~w Message=~w", [Xid, Message], State),
     #of_switch_state{connection_pid = ConnectionPid} = State,
-    ok = of_connection:send(ConnectionPid, Xid, Message),
-    State.
+    case of_connection:send(ConnectionPid, Xid, Message) of
+        ok ->
+            State;
+        {error, Reason} ->
+            State    %% @@ CONTINUE FROM HERE: HANDLE SEND ERROR @@
+    end.
 
 allocate_xid(State) ->
     Xid = State#of_switch_state.next_local_xid,
@@ -378,7 +381,7 @@ process_received_v10_echo_reply(_Xid, EchoReply, State) ->
     {noreply, State1}.
 
 process_received_v10_features_reply(_Xid, _FeaturesReply, State) ->
-    %% TODO @@@
+    %% TODO: implement this 
     {noreply, State}.
 
 process_received_unknown_message(_Xid, Message, State) ->
