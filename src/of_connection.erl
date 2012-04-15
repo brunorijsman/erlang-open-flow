@@ -139,7 +139,6 @@ handle_call(close, _From, State) ->
     {reply, ok, State1};
 
 handle_call({send, Xid, MessageRec}, _From, State) ->
-    %% ?DEBUG("send"),   TODO: too verbose until we do filtering
     MessageBin = of_v10_encoder:encode(MessageRec, Xid),
     Socket = State#of_connection_state.socket,
     case gen_tcp:send(Socket, MessageBin) of
@@ -150,28 +149,57 @@ handle_call({send, Xid, MessageRec}, _From, State) ->
     end.
     
 handle_cast(Cast, State) ->
-    ?DEBUG("unknown cast Cast=~w", [Cast]),
+    ?ERROR("unknown cast Cast=~w", [Cast]),
     {noreply, State}.
 
-handle_info({tcp, Socket, Data}, State)
-  when State#of_connection_state.socket == Socket ->
-    %% ?DEBUG("receive"),   TODO: too verbose until we do filtering
-    {noreply, receive_data(Data, State)};
+handle_info({tcp, Socket, Data}, State) ->
+    case State#of_connection_state.socket of
+        Socket -> 
+            {noreply, receive_data(Data, State)};
+        undefined ->
+            ?NOTICE("connection receive when not connected"),
+            {noreply, State};
+        _OtherSocket ->
+            ?NOTICE("connection receive on unexpected socket"),
+            {noreply, State}
+    end;
 
-handle_info({tcp, _Socket, _Data}, State) ->
-    ?DEBUG("receive when not connected"),
-    {noreply, State};
+handle_info({tcp_closed, Socket}, State) ->
+    case State#of_connection_state.socket of
+        Socket -> 
+            %% @@@ TODO: handle close
+            {noreply, State};
+        undefined ->
+            ?NOTICE("connection close when not connected"),
+            {noreply, State};
+        _OtherSocket ->
+            ?NOTICE("connection close on unexpected socket"),
+            {noreply, State}
+    end;
+
+handle_info({tcp_error, Socket, _Reason}, State) ->
+    case State#of_connection_state.socket of
+        Socket -> 
+            %% @@@ TODO: handle error
+            {noreply, State};
+        undefined ->
+            ?NOTICE("connection error when not connected"),
+            {noreply, State};
+        _OtherSocket ->
+            ?NOTICE("connection error on unexpected socket"),
+            {noreply, State}
+    end;
 
 handle_info(Info, State) ->
-    ?DEBUG("unknown info Info=~w", [Info]),
+    ?ERROR("unknown info Info=~w", [Info]),
     {noreply, State}.
 
 terminate(Reason, _State) ->
-    ?DEBUG("terminate Reason=~w", [Reason]),
+    ?NOTICE("terminate Reason=~w", [Reason]),
     ok.
 
 code_change(OldVersion, State, _Extra) ->
-    ?DEBUG("code_change OldVersion=~w", [OldVersion]),
+    ?NOTICE("code_change OldVersion=~w", [OldVersion]),
     {ok, State}.
 
 %%

@@ -112,7 +112,7 @@ handle_info(Info, State) ->
 
 terminate(Reason, State) ->
     debug_switch("terminate Reason=~w", [Reason], State),
-    of_group:send(of_switch, {of_switch, remove, self()}),
+    of_events:multicast_event(of_switch, remove, self()),
     ok.
 
 code_change(OldVersion, State, _Extra) ->
@@ -199,8 +199,9 @@ send_message(Xid, Message, State) ->
     case of_connection:send(ConnectionPid, Xid, Message) of
         ok ->
             State;
-        {error, Reason} ->
-            State    %% @@ CONTINUE FROM HERE: HANDLE SEND ERROR @@
+        {error, _Reason} ->
+            %% TODO: handle the error (we are disconnected)
+            State
     end.
 
 allocate_xid(State) ->
