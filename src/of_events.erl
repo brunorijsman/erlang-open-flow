@@ -25,20 +25,20 @@ delete_topic(Topic) ->
     pg2:delete(topic_to_group_name(Topic)).
 
 subscribe_to_topic(Topic, Pid) ->
-    ?DEBUG_KEY([{topic, Topic}], "join Pid=~w", [Pid]),
+    ?DEBUG_KEY_FMT([{topic, Topic}], "join Pid=~w", [Pid]),
     pg2:join(topic_to_group_name(Topic), Pid).
     
 unsubscribe_from_topic(Topic, Pid) ->
-    ?DEBUG_KEY([{topic, Topic}], "leave Pid=~w", [Pid]),
+    ?DEBUG_KEY_FMT([{topic, Topic}], "leave Pid=~w", [Pid]),
     pg2:leave(topic_to_group_name(Topic), Pid).
 
 unicast_event(Pid, Topic, Event, Args) ->
-    ?DEBUG_KEY([{topic, Topic}], "unicast event Pid=~w Event=~w Args=~w", [Pid, Event, Args]),
+    ?DEBUG_KEY_FMT([{topic, Topic}], "unicast event Pid=~w Event=~w Args=~w", [Pid, Event, Args]),
     Pid ! {of_event, Event, Args},
     ok.
 
 multicast_event(Topic, Event, Args) ->
-    ?DEBUG_KEY([{topic, Topic}], "multicast event Event=~w Args=~w", [Event, Args]),
+    ?DEBUG_KEY_FMT([{topic, Topic}], "multicast event Event=~w Args=~w", [Event, Args]),
     case pg2:get_members(Topic) of
         {error, Reason} ->
             {error, Reason};

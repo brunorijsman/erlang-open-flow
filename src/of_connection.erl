@@ -149,7 +149,7 @@ handle_call({send, Xid, MessageRec}, _From, State) ->
     end.
     
 handle_cast(Cast, State) ->
-    ?ERROR("unknown cast Cast=~w", [Cast]),
+    ?ERROR_FMT("unknown cast Cast=~w", [Cast]),
     {noreply, State}.
 
 handle_info({tcp, Socket, Data}, State) ->
@@ -191,15 +191,15 @@ handle_info({tcp_error, Socket, _Reason}, State) ->
     end;
 
 handle_info(Info, State) ->
-    ?ERROR("unknown info Info=~w", [Info]),
+    ?ERROR_FMT("unknown info Info=~w", [Info]),
     {noreply, State}.
 
 terminate(Reason, _State) ->
-    ?NOTICE("terminate Reason=~w", [Reason]),
+    ?NOTICE_FMT("terminate Reason=~w", [Reason]),
     ok.
 
 code_change(OldVersion, State, _Extra) ->
-    ?NOTICE("code_change OldVersion=~w", [OldVersion]),
+    ?NOTICE_FMT("code_change OldVersion=~w", [OldVersion]),
     {ok, State}.
 
 %%

@@ -78,7 +78,7 @@ init([]) ->
     {ok, State}.
 
 handle_call({connect, IpAddress, TcpPort}, _From, State) ->
-    ?DEBUG("connect IpAddress=~w TcpPort=~w", [IpAddress, TcpPort]),   %% TODO
+    ?DEBUG_FMT("connect IpAddress=~w TcpPort=~w", [IpAddress, TcpPort]),   %% TODO
     State1 = initiate_connection(IpAddress, TcpPort, State),
     {reply, ok, State1};
 
@@ -128,7 +128,7 @@ debug_switch(Message, State) ->
 
 debug_switch(Format, Args, State) ->
     #of_switch_state{name = Name} = State,
-    ?DEBUG_KEY([{switch, Name}], Format, Args).
+    ?DEBUG_KEY_FMT([{switch, Name}], Format, Args).
 
 address_and_port_to_name(IpAddress, TcpPort) ->
     inet_parse:ntoa(IpAddress) ++ ":" ++ integer_to_list(TcpPort).
