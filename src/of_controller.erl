@@ -84,24 +84,24 @@ handle_call(stop, _From, State) ->
 
 handle_call({subscribe, Topic = switch}, From, State) ->
     {SubscriberPid, _} = From,
-    ?DEBUG("subscribe Topic=~w Subscriber=~w", [Topic, SubscriberPid]),
+    ?DEBUG_FMT("subscribe Topic=~w Subscriber=~w", [Topic, SubscriberPid]),
     of_events:subscribe_to_topic(switch, SubscriberPid),
     #of_controller_state{switches = Switches} = State,
     lists:foreach(fun(SwitchPid) -> of_events:unicast_event(SubscriberPid, switch, add, SwitchPid) end, Switches),
     {reply, ok, State};
 
 handle_call({subscribe, Topic}, From, State) ->
-    ?DEBUG("subscribe unknown topic Topic=~w Subscriber=~w", [Topic, From]),
+    ?DEBUG_FMT("subscribe unknown topic Topic=~w Subscriber=~w", [Topic, From]),
     {reply, {error, unknown_topic}, State};
 
 handle_call({unsubscribe, Topic = switch}, From, State) ->
     {SubscriberPid, _} = From,
-    ?DEBUG("unsubscribe Topic=~w Subscriber=~w", [Topic, SubscriberPid]),
+    ?DEBUG_FMT("unsubscribe Topic=~w Subscriber=~w", [Topic, SubscriberPid]),
     of_events:unsubscribe_from_topic(owitch, SubscriberPid),
     {reply, ok, State};
 
 handle_call({unsubscribe, Topic}, From, State) ->
-    ?DEBUG("unsubscribe unknown topic Topic=~w Subscriber=~w", [Topic, From]),
+    ?DEBUG_FMT("unsubscribe unknown topic Topic=~w Subscriber=~w", [Topic, From]),
     {reply, {error, unknown_topic}, State}.
 
 %% TODO: Also handle removing switches and reporting a corresponding event
@@ -121,19 +121,19 @@ handle_cast({accepted, Socket}, State) ->
     {noreply, State1};
 
 handle_cast({'EXIT', From, Reason}, State) ->
-    ?DEBUG("received EXIT from ~w for reason ~w", [From, Reason]),
+    ?DEBUG_FMT("received EXIT from ~w for reason ~w", [From, Reason]),
     {noreply, State};
 
 handle_cast(Cast, State) ->
-    ?DEBUG("received cast ~w", [Cast]),
+    ?DEBUG_FMT("received cast ~w", [Cast]),
     {noreply, State}.
 
 handle_info(Info, State) ->
-    ?DEBUG("received info ~w", [Info]),
+    ?DEBUG_FMT("received info ~w", [Info]),
     {noreply, State}.
 
 terminate(Reason, _State) ->
-    ?DEBUG("terminate Reason=~w", [Reason]),
+    ?DEBUG_FMT("terminate Reason=~w", [Reason]),
     ok.
 
 code_change(_OldVersion, State, _Extra) ->
@@ -159,7 +159,7 @@ initial_state(Args) ->
     ListenPort = State2#of_controller_state.listen_port,
     case gen_tcp:listen(ListenPort, TcpOptions) of
         {ok, ListenSocket} ->
-            ?DEBUG("listening on port ~w", [ListenPort]),
+            ?DEBUG_FMT("listening on port ~w", [ListenPort]),
             State2#of_controller_state{listen_socket = ListenSocket};
         {error, Reason} ->
             erlang:error(Reason)
