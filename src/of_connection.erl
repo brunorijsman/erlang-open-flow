@@ -82,11 +82,11 @@ handle_call(stop, _From, State) ->
 
 handle_call({connect, _Address, _Port}, _From, State) 
   when State#of_connection_state.socket /= undefined ->
-    ?DEBUG("connect when already connected"),
+    ?DEBUG("initiate outgoing connection when already connected"),
     {reply, {error, already_connected}, State};
 
 handle_call({connect, Address, Port}, From, State) ->
-    ?DEBUG("connect"),
+    ?DEBUG("initiate outgoing connection"),
     Options = [binary, {active, once}],
     case gen_tcp:connect(Address, Port, Options) of
         {ok, Socket} ->
@@ -105,11 +105,11 @@ handle_call({connect, Address, Port}, From, State) ->
 
 handle_call({accept, _Socket}, _From, State) 
   when State#of_connection_state.socket /= undefined ->
-    ?DEBUG("accept when already connected"),
+    ?DEBUG("accept incoming connection when already connected"),
     {reply, {error, already_connected}, State};
 
 handle_call({accept, Socket}, From, State) ->
-    ?DEBUG("accept"),
+    ?DEBUG("accept incoming connection"),
     ok = inet:setopts(Socket, [{active, once}]),
     {FromPid, _FromTag} = From,
     State1 = State#of_connection_state{
@@ -123,19 +123,14 @@ handle_call({accept, Socket}, From, State) ->
 
 handle_call(close, _From, State) 
   when State#of_connection_state.socket == undefined ->
-    ?DEBUG("close when not connected"),
+    ?DEBUG("close connection when not connected"),
     {reply, ok, State};
 
 handle_call(close, _From, State) ->
-    ?DEBUG("close"),
+    ?DEBUG("close connection"),
     #of_connection_state{socket = Socket} = State,
     ok = gen_tcp:close(Socket),
-    State1 = State#of_connection_state{
-               socket           = undefined,
-               direction        = undefined,
-               receive_state    = undefined,
-               receive_need_len = undefined,
-               received_data    = undefined},
+    State1 = disconnected_state(State),
     {reply, ok, State1};
 
 handle_call({send, Xid, MessageRec}, _From, State) ->
@@ -157,38 +152,39 @@ handle_info({tcp, Socket, Data}, State) ->
         Socket -> 
             {noreply, receive_data(Data, State)};
         undefined ->
-            ?NOTICE("connection receive when not connected"),
+            ?NOTICE("receive data on connection when not connected"),
             {noreply, State};
         _OtherSocket ->
-            ?NOTICE("connection receive on unexpected socket"),
+            ?NOTICE("receive data on connection on unexpected socket"),
             {noreply, State}
     end;
 
 handle_info({tcp_closed, Socket}, State) ->
     case State#of_connection_state.socket of
         Socket -> 
-            %% @@@ TODO: handle close
-            {noreply, State};
+            ?INFO("connection closed by remote");
         undefined ->
-            ?NOTICE("connection close when not connected"),
-            {noreply, State};
+            ?NOTICE("connection closed by remote when not connected");
         _OtherSocket ->
-            ?NOTICE("connection close on unexpected socket"),
-            {noreply, State}
-    end;
+            ?NOTICE("connection closed by remote on unexpected socket")
+    end,
+    ReceiverPid ! of_closed,
+    State1 = disconnected_state(State),
+    {noreply, State1};
 
-handle_info({tcp_error, Socket, _Reason}, State) ->
+handle_info({tcp_error, Socket, Reason}, State) ->
+###
     case State#of_connection_state.socket of
         Socket -> 
-            %% @@@ TODO: handle error
-            {noreply, State};
+            ?INFO("connection closed by remote Reason=~p", [Reason]);
         undefined ->
-            ?NOTICE("connection error when not connected"),
-            {noreply, State};
+            ?NOTICE("connection error when not connected");
         _OtherSocket ->
-            ?NOTICE("connection error on unexpected socket"),
-            {noreply, State}
-    end;
+            ?NOTICE("connection error on unexpected socket")
+    end,
+    ReceiverPid ! {of_error, Reason},
+    State1 = disconnected_state(State),
+    {noreply, State1};
 
 handle_info(Info, State) ->
     ?ERROR("unknown info Info=~w", [Info]),
@@ -256,7 +252,14 @@ consume_body(BodyBin, State) ->
                               receive_need_len = ?OF_HEADER_LEN,
                               received_header  = undefined}.
 
-    
+disconnected_state(State) ->
+    State#of_connection_state{
+      socket           = undefined,
+      direction        = undefined,
+      receive_state    = undefined,
+      receive_need_len = undefined,
+      received_data    = undefined}.
+
 %%
 %% Unit tests. 
 %%
