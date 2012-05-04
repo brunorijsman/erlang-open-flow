@@ -162,29 +162,32 @@ handle_info({tcp, Socket, Data}, State) ->
 handle_info({tcp_closed, Socket}, State) ->
     case State#of_connection_state.socket of
         Socket -> 
-            ?INFO("connection closed by remote");
+            ?INFO("connection closed by remote"),
+            State#of_connection_state.receiver_pid ! of_closed,
+            State1 = disconnected_state(State),
+            {noreply, State1};
         undefined ->
-            ?NOTICE("connection closed by remote when not connected");
+            ?NOTICE("connection closed by remote when not connected"),
+            {noreply, State};
         _OtherSocket ->
-            ?NOTICE("connection closed by remote on unexpected socket")
-    end,
-    ReceiverPid ! of_closed,
-    State1 = disconnected_state(State),
-    {noreply, State1};
+            ?NOTICE("connection closed by remote on unexpected socket"),
+            {noreply, State}
+    end;
 
 handle_info({tcp_error, Socket, Reason}, State) ->
-###
     case State#of_connection_state.socket of
         Socket -> 
-            ?INFO("connection closed by remote Reason=~p", [Reason]);
+            ?NOTICE_FMT("connection error Reason=~p", [Reason]),
+            State#of_connection_state.receiver_pid ! {of_error, Reason},
+            State1 = disconnected_state(State),
+            {noreply, State1};
         undefined ->
-            ?NOTICE("connection error when not connected");
+            ?NOTICE_FMT("connection error by remote when not connected Reason=~p", [Reason]),
+            {noreply, State};
         _OtherSocket ->
-            ?NOTICE("connection error on unexpected socket")
-    end,
-    ReceiverPid ! {of_error, Reason},
-    State1 = disconnected_state(State),
-    {noreply, State1};
+            ?NOTICE_FMT("connection error by remote on unexpected socket Reason=~p", [Reason]),
+            {noreply, State}
+    end;
 
 handle_info(Info, State) ->
     ?ERROR_FMT("unknown info Info=~w", [Info]),
