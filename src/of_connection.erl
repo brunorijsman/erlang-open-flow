@@ -134,6 +134,7 @@ handle_call(close, _From, State) ->
     {reply, ok, State1};
 
 handle_call({send, Xid, MessageRec}, _From, State) ->
+    %% TODO: Cannot assume version 1.0; we need some way to establish the version of the protocol
     MessageBin = of_v10_encoder:encode(MessageRec, Xid),
     Socket = State#of_connection_state.socket,
     case gen_tcp:send(Socket, MessageBin) of
@@ -267,25 +268,48 @@ disconnected_state(State) ->
 %% Unit tests. 
 %%
 
-%% TODO: ifdef TEST for echo server code
+-ifdef(TEST).
 
-echo_server_start() ->
+tcp_echo_server_start() ->
     Options = [binary, {packet, 0}, {active, false}, {reuseaddr, true}],
     {ok, ListenSocket} = gen_tcp:listen(0, Options),
     {ok, Port} = inet:port(ListenSocket),
-    spawn(fun() -> echo_server_accept(ListenSocket) end),
+    spawn(fun() -> tcp_echo_server_accept(ListenSocket) end),
     {ok, Port}.
 
-echo_server_accept(ListenSocket) ->
+tcp_echo_server_accept(ListenSocket) ->
     {ok, Socket} = gen_tcp:accept(ListenSocket),
-    echo_server_loop(Socket).
+    tcp_echo_server_loop(Socket).
     
-echo_server_loop(Socket) ->
+tcp_echo_server_loop(Socket) ->
     case gen_tcp:recv(Socket, 0) of
         {ok, Data} ->
             ok = gen_tcp:send(Socket, Data),
-            echo_server_loop(Socket);
+            tcp_echo_server_loop(Socket);
         {error, closed} ->
+            ok
+    end.
+
+of_echo_server_start() ->
+    Options = [binary, {packet, 0}, {active, false}, {reuseaddr, true}],
+    {ok, ListenSocket} = gen_tcp:listen(0, Options),
+    {ok, Port} = inet:port(ListenSocket),
+    spawn(fun() -> of_echo_server_accept(ListenSocket) end),
+    {ok, Port}.
+
+of_echo_server_accept(ListenSocket) ->
+    {ok, Socket} = gen_tcp:accept(ListenSocket),
+    {ok, ConnectionPid} = start_link(),
+    accept(ConnectionPid, Socket),
+    of_echo_server_loop(ConnectionPid).
+
+of_echo_server_loop(ConnectionPid) ->
+    receive
+        {of_receive_message, Xid, Message} ->
+            send(ConnectionPid, Xid, Message),
+            of_echo_server_loop(ConnectionPid);
+        of_closed ->
+            stopped = stop(ConnectionPid),
             ok
     end.
                 
@@ -296,14 +320,14 @@ start_and_stop_test() ->
     ?assert(not is_process_alive(Pid)).
  
 connect_and_close_test() ->
-    {ok, Port} = echo_server_start(),
+    {ok, Port} = tcp_echo_server_start(),
     {ok, Pid} = start_link(),
     ok = connect(Pid, "localhost", Port),
     ok = close(Pid),
     stopped = stop(Pid).
 
 connect_already_connected_test() ->
-    {ok, Port} = echo_server_start(),
+    {ok, Port} = tcp_echo_server_start(),
     {ok, Pid} = start_link(),
     ok = connect(Pid, "localhost", Port),
     {error, already_connected} = connect(Pid, "localhost", Port),
@@ -320,3 +344,49 @@ close_not_connected_test() ->
     {ok, Pid} = start_link(),
     ok = close(Pid),
     stopped = stop(Pid).
+
+tcp_echo_test() ->
+    {ok, Port} = tcp_echo_server_start(),
+    {ok, Pid} = start_link(),
+    ok = connect(Pid, "localhost", Port),
+    SendXid = 1,
+    SendMessage = #of_vxx_hello{version = 1},
+    ok = send(Pid, SendXid, SendMessage),
+    receive
+        {of_receive_message, ReceiveXid, ReceiveMessage} ->
+            ?assertEqual(SendXid, ReceiveXid),
+            ?assertEqual(SendMessage, ReceiveMessage),
+            nop
+    end,
+    ok = close(Pid),
+    stopped = stop(Pid).
+
+of_echo_test() ->
+    {ok, Port} = of_echo_server_start(),
+    {ok, Pid} = start_link(),
+    ok = connect(Pid, "localhost", Port),
+    SendXid = 1,
+    SendMessage = #of_vxx_hello{version = 1},
+    ok = send(Pid, SendXid, SendMessage),
+    receive
+        {of_receive_message, ReceiveXid, ReceiveMessage} ->
+            ?assertEqual(SendXid, ReceiveXid),
+            ?assertEqual(SendMessage, ReceiveMessage),
+            nop
+    end,
+    ok = close(Pid),
+    stopped = stop(Pid).
+
+unknown_cast_test() ->
+    {ok, Pid} = start_link(),
+    gen_server:cast(Pid, unknown_cast),
+    ?assert(is_process_alive(Pid)),
+    stopped = stop(Pid).
+    
+unknown_info_test() ->
+    {ok, Pid} = start_link(),
+    Pid ! unknown_info,
+    ?assert(is_process_alive(Pid)),
+    stopped = stop(Pid).
+
+-endif.
