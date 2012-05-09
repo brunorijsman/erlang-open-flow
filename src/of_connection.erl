@@ -32,7 +32,8 @@
           receive_need_len,
           received_data,
           received_header,
-          receiver_pid}).
+          receiver_pid,
+          log_keys}).
 
 %% TODO: State (receive data) needs to be updated when connect or close
 
@@ -71,22 +72,29 @@ init([]) ->
       receive_need_len = undefined,
       received_data    = undefined,
       received_header  = undefined,
-      receiver_pid     = undefined},
+      receiver_pid     = undefined,
+      log_keys         = []},
     {ok, State}.
 
+-define(DEBUG_STATE(State, Message), ?DEBUG_KEY(State#of_connection_state.log_keys, Message)).
+-define(INFO_STATE(State, Message), ?INFO_KEY(State#of_connection_state.log_keys, Message)).
+-define(NOTICE_STATE(State, Message), ?NOTICE_KEY(State#of_connection_state.log_keys, Message)).
+-define(NOTICE_STATE_FMT(State, Format, Args), ?NOTICE_KEY_FMT(State#of_connection_state.log_keys, Format, Args)).
+-define(ERROR_STATE_FMT(State, Format, Args), ?ERROR_KEY_FMT(State#of_connection_state.log_keys, Format, Args)).
+
 handle_call(stop, _From, State) ->
-    ?DEBUG("stop"),
+    ?DEBUG_STATE(State, "stop"),
     {stop, normal, stopped, State};
 
 %% TODO: Add address:port->address:port as key to all debug messages
 
 handle_call({connect, _Address, _Port}, _From, State) 
   when State#of_connection_state.socket /= undefined ->
-    ?DEBUG("initiate outgoing connection when already connected"),
+    ?DEBUG_STATE(State, "initiate outgoing connection when already connected"),
     {reply, {error, already_connected}, State};
 
 handle_call({connect, Address, Port}, From, State) ->
-    ?DEBUG("initiate outgoing connection"),
+    ?DEBUG_STATE(State, "initiate outgoing connection"),
     Options = [binary, {active, once}],
     case gen_tcp:connect(Address, Port, Options) of
         {ok, Socket} ->
@@ -98,18 +106,18 @@ handle_call({connect, Address, Port}, From, State) ->
                        receive_need_len = ?OF_HEADER_LEN,
                        received_data    = <<>>,
                        receiver_pid     = FromPid},
-            {reply, ok, State1};
+            State2 = set_log_keys(State1),
+            {reply, ok, State2};
         {error, Reason} ->
             {reply, {error, Reason}, State}
     end;
 
 handle_call({accept, _Socket}, _From, State) 
   when State#of_connection_state.socket /= undefined ->
-    ?DEBUG("accept incoming connection when already connected"),
+    ?DEBUG_STATE(State, "accept incoming connection when already connected"),
     {reply, {error, already_connected}, State};
 
 handle_call({accept, Socket}, From, State) ->
-    ?DEBUG("accept incoming connection"),
     ok = inet:setopts(Socket, [{active, once}]),
     {FromPid, _FromTag} = From,
     State1 = State#of_connection_state{
@@ -119,15 +127,17 @@ handle_call({accept, Socket}, From, State) ->
                receive_need_len = ?OF_HEADER_LEN,
                received_data    = <<>>,
                receiver_pid     = FromPid},
-    {reply, ok, State1};
+    State2 = set_log_keys(State1),
+    ?DEBUG_STATE(State2, "accept incoming connection"),
+    {reply, ok, State2};
 
 handle_call(close, _From, State) 
   when State#of_connection_state.socket == undefined ->
-    ?DEBUG("close connection when not connected"),
+    ?DEBUG_STATE(State, "close connection when not connected"),
     {reply, ok, State};
 
 handle_call(close, _From, State) ->
-    ?DEBUG("close connection"),
+    ?DEBUG_STATE(State, "close connection"),
     #of_connection_state{socket = Socket} = State,
     ok = gen_tcp:close(Socket),
     State1 = disconnected_state(State),
@@ -145,7 +155,7 @@ handle_call({send, Xid, MessageRec}, _From, State) ->
     end.
     
 handle_cast(Cast, State) ->
-    ?ERROR_FMT("unknown cast Cast=~w", [Cast]),
+    ?ERROR_STATE_FMT(State, "unknown cast Cast=~w", [Cast]),
     {noreply, State}.
 
 handle_info({tcp, Socket, Data}, State) ->
@@ -153,53 +163,53 @@ handle_info({tcp, Socket, Data}, State) ->
         Socket -> 
             {noreply, receive_data(Data, State)};
         undefined ->
-            ?NOTICE("receive data on connection when not connected"),
+            ?NOTICE_STATE(State, "receive data on connection when not connected"),
             {noreply, State};
         _OtherSocket ->
-            ?NOTICE("receive data on connection on unexpected socket"),
+            ?NOTICE_STATE(State, "receive data on connection on unexpected socket"),
             {noreply, State}
     end;
 
 handle_info({tcp_closed, Socket}, State) ->
     case State#of_connection_state.socket of
         Socket -> 
-            ?INFO("connection closed by remote"),
+            ?INFO_STATE(State, "connection closed by remote"),
             State#of_connection_state.receiver_pid ! of_closed,
             State1 = disconnected_state(State),
             {noreply, State1};
         undefined ->
-            ?NOTICE("connection closed by remote when not connected"),
+            ?NOTICE_STATE(State, "connection closed by remote when not connected"),
             {noreply, State};
         _OtherSocket ->
-            ?NOTICE("connection closed by remote on unexpected socket"),
+            ?NOTICE_STATE(State, "connection closed by remote on unexpected socket"),
             {noreply, State}
     end;
 
 handle_info({tcp_error, Socket, Reason}, State) ->
     case State#of_connection_state.socket of
         Socket -> 
-            ?NOTICE_FMT("connection error Reason=~p", [Reason]),
+            ?NOTICE_STATE_FMT(State, "connection error Reason=~p", [Reason]),
             State#of_connection_state.receiver_pid ! {of_error, Reason},
             State1 = disconnected_state(State),
             {noreply, State1};
         undefined ->
-            ?NOTICE_FMT("connection error by remote when not connected Reason=~p", [Reason]),
+            ?NOTICE_STATE_FMT(State, "connection error by remote when not connected Reason=~p", [Reason]),
             {noreply, State};
         _OtherSocket ->
-            ?NOTICE_FMT("connection error by remote on unexpected socket Reason=~p", [Reason]),
+            ?NOTICE_STATE_FMT(State, "connection error by remote on unexpected socket Reason=~p", [Reason]),
             {noreply, State}
     end;
 
 handle_info(Info, State) ->
-    ?ERROR_FMT("unknown info Info=~w", [Info]),
+    ?ERROR_STATE_FMT(State, "unknown info Info=~w", [Info]),
     {noreply, State}.
 
-terminate(Reason, _State) ->
-    ?NOTICE_FMT("terminate Reason=~w", [Reason]),
+terminate(Reason, State) ->
+    ?NOTICE_STATE_FMT(State, "terminate Reason=~w", [Reason]),
     ok.
 
 code_change(OldVersion, State, _Extra) ->
-    ?NOTICE_FMT("code_change OldVersion=~w", [OldVersion]),
+    ?NOTICE_STATE_FMT(State, "code_change OldVersion=~w", [OldVersion]),
     {ok, State}.
 
 %%
@@ -256,13 +266,20 @@ consume_body(BodyBin, State) ->
                               receive_need_len = ?OF_HEADER_LEN,
                               received_header  = undefined}.
 
+set_log_keys(State) ->
+    {ok, {Address, Port}} = inet:peername(State#of_connection_state.socket),
+    RemoteStr = inet_parse:ntoa(Address) ++ ":" ++ integer_to_list(Port),
+    LogKeys = [{remote, RemoteStr}],
+    State#of_connection_state{log_keys = LogKeys}.
+
 disconnected_state(State) ->
     State#of_connection_state{
       socket           = undefined,
       direction        = undefined,
       receive_state    = undefined,
       receive_need_len = undefined,
-      received_data    = undefined}.
+      received_data    = undefined,
+      log_keys         = []}.
 
 %%
 %% Unit tests. 
@@ -377,6 +394,30 @@ of_echo_test() ->
     ok = close(Pid),
     stopped = stop(Pid).
 
+accept_already_connected_test() ->
+    {ok, Port} = of_echo_server_start(),
+    {ok, Pid} = start_link(),
+    ok = connect(Pid, "localhost", Port),
+    {ok, Socket} = gen_tcp:connect("localhost", Port, []),
+    Result = accept(Pid, Socket),
+    ?assertEqual(Result, {error, already_connected}),
+    ok = gen_tcp:close(Socket),
+    ok = close(Pid),
+    stopped = stop(Pid).
+
+stray_info_test() ->
+    {ok, Port} = of_echo_server_start(),
+    {ok, Pid} = start_link(),
+    ok = connect(Pid, "localhost", Port),
+    Pid ! {tcp, fake_stale_socket, <<>>}, 
+    Pid ! {tcp_closed, fake_stale_socket},
+    Pid ! {tcp_error, fake_stale_socket, fake_reason}, 
+    ok = close(Pid),
+    Pid ! {tcp, fake_stale_socket, <<>>},
+    Pid ! {tcp_closed, fake_stale_socket},
+    Pid ! {tcp_error, fake_stale_socket, fake_reason}, 
+    stopped = stop(Pid).
+    
 unknown_cast_test() ->
     {ok, Pid} = start_link(),
     gen_server:cast(Pid, unknown_cast),
