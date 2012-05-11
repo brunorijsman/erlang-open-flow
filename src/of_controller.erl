@@ -178,7 +178,9 @@ parse_arg(Arg, _State) ->
     erlang:error({unrecognized_attribute, Arg}).
 
 handle_connection(Socket) ->
-    %% Don't crash if switch doesn't start -- log something instead
+    %% TODO: Don't crash if switch doesn't start -- log something instead
+    %% TODO: switch might already exist!
+    %% TODO: handle of_close from switch
     {ok, SwitchPid} = of_switch:start_link(),
     ok = of_switch:accept(SwitchPid, Socket),
     {ok, SwitchPid}.

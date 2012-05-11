@@ -21,10 +21,15 @@
 
 -include_lib("../include/of.hrl").
 -include_lib("../include/of_v10.hrl").
+
+-define(STATE_RECORD, of_switch_state).
 -include_lib("../include/of_log.hrl").
 
+%% @@@ TODO: Send of_closed (of_down?) when connection goes down. Owner can decide whether to stop.
+
 -record(of_switch_state, {
-          name,
+          log_keys,
+          owner_pid,
           connection_pid,
           version,
           next_local_xid,
@@ -51,7 +56,7 @@
 %%
 
 start_link() ->
-    gen_server:start_link(?MODULE, [], []).
+    gen_server:start_link(?MODULE, [self()], []).
 
 stop(Pid) ->
     gen_server:call(Pid, stop).
@@ -67,18 +72,20 @@ accept(Pid, Socket) ->
 %% gen_server callbacks.
 %%
 
-init([]) ->
-    State = #of_switch_state{name                     = undefined,
-                             connection_pid           = undefined, 
-                             version                  = undefined,
-                             next_local_xid           = 1,
-                             receive_hello_timer      = undefined,
-                             send_echo_request_timer  = undefined,
-                             pending_requests         = dict:new()},
+init([OwnerPid]) ->
+    State = #of_switch_state{
+      log_keys                = [],
+      owner_pid               = OwnerPid,
+      connection_pid          = undefined, 
+      version                 = undefined,
+      next_local_xid          = 1,
+      receive_hello_timer     = undefined,
+      send_echo_request_timer = undefined,
+      pending_requests        = dict:new()},
     {ok, State}.
 
 handle_call({connect, IpAddress, TcpPort}, _From, State) ->
-    ?DEBUG_FMT("connect IpAddress=~w TcpPort=~w", [IpAddress, TcpPort]),   %% TODO
+    ?DEBUG_STATE_FMT(State, "connect IpAddress=~w TcpPort=~w", [IpAddress, TcpPort]),   %% TODO
     State1 = initiate_connection(IpAddress, TcpPort, State),
     {reply, ok, State1};
 
@@ -87,15 +94,18 @@ handle_call({accept, Socket}, _From, State) ->
     {reply, ok, State1};
 
 handle_call(stop, _From, State) ->
-    debug_switch("stop", State),
+    ?DEBUG_STATE(State, "stop"),
     {stop, normal, stopped, State}.
 
 handle_cast(Cast, State) ->
-    debug_switch("cast Cast=~w", [Cast], State),
+    ?ERROR_STATE_FMT(State, "unknown cast Cast=~w", [Cast]),
     {noreply, State}.
 
 handle_info({of_receive_message, Xid, Message}, State) ->
     process_received_message(Xid, Message, State);
+
+handle_info(of_closed, State) ->
+    process_closed(State);
 
 handle_info(timer_expired_receive_hello, State) ->
     process_timer_expired_receive_hello(State);
@@ -107,47 +117,40 @@ handle_info({timer_expired_receive_reply, Xid}, State) ->
     process_timer_expired_receive_reply(Xid, State);
 
 handle_info(Info, State) ->
-    debug_switch("info Info=~w", [Info], State),
+    ?ERROR_STATE_FMT(State, "unknown info Info=~w", [Info]),
     {noreply, State}.
 
 terminate(Reason, State) ->
-    debug_switch("terminate Reason=~w", [Reason], State),
+    ?NOTICE_STATE_FMT(State, "terminate Reason=~w", [Reason]),
     of_events:multicast_event(of_switch, remove, self()),
     ok.
 
 code_change(OldVersion, State, _Extra) ->
-    debug_switch("code_change OldVersion=~w", [OldVersion], State),
+    ?NOTICE_STATE_FMT(State, "code change OldVersion=~w", [OldVersion]),
     {ok, State}.
 
 %%                 
 %% Internal functions.
 %%
 
-debug_switch(Message, State) ->
-    debug_switch(Message, [], State).
-
-debug_switch(Format, Args, State) ->
-    #of_switch_state{name = Name} = State,
-    ?DEBUG_KEY_FMT([{switch, Name}], Format, Args).
-
-address_and_port_to_name(IpAddress, TcpPort) ->
+address_and_port_to_string(IpAddress, TcpPort) ->
     inet_parse:ntoa(IpAddress) ++ ":" ++ integer_to_list(TcpPort).
 
 initiate_connection(IpAddress, TcpPort, State) ->
     ?assert(State#of_switch_state.connection_pid == undefined),
-    Name = address_and_port_to_name(IpAddress, TcpPort),
+    Remote = address_and_port_to_string(IpAddress, TcpPort),
     {ok, ConnectionPid} = of_connection:start_link(),                %% TODO: handle errors?
     ok = of_connection:connect(ConnectionPid, IpAddress, TcpPort),   %% TODO: handle errors
-    State1 = State#of_switch_state{name = Name, connection_pid = ConnectionPid},
+    State1 = State#of_switch_state{log_keys = [{remote, Remote}], connection_pid = ConnectionPid},
     process_connection_up(State1).
 
 accept_connection(Socket, State) -> 
     {ok, {IpAddress, TcpPort}} = inet:peername(Socket),
-    Name = address_and_port_to_name(IpAddress, TcpPort),
+    Remote = address_and_port_to_string(IpAddress, TcpPort),
     {ok, ConnectionPid} = of_connection:start_link(),                %% TODO: handle errors
     ok = of_connection:accept(ConnectionPid, Socket),                %% TODO: handle errors
-    State1 = State#of_switch_state{name = Name, connection_pid = ConnectionPid},
-    debug_switch("incoming connection accepted", State1),
+    State1 = State#of_switch_state{log_keys = [{remote, Remote}], connection_pid = ConnectionPid},
+    ?DEBUG_STATE(State1, "accept incoming connection"),
     process_connection_up(State1).
 
 close_connection(State) ->
@@ -188,13 +191,17 @@ start_send_echo_request_timer(State) ->
                         timer_expired_send_echo_request),
     State#of_switch_state{send_echo_request_timer = Timer}.
 
+stop_send_echo_request_timer(State) ->
+    stop_timer(State#of_switch_state.send_echo_request_timer),
+    State#of_switch_state{send_echo_request_timer = undefined}.
+
 %% TODO: need this?    
 %% stop_send_echo_request_timer(State) ->
 %%     stop_timer(State#of_switch_state.send_echo_request_timer),
 %%     State#of_switch_state{send_echo_request_timer = undefined}.
 
 send_message(Xid, Message, State) ->
-    debug_switch("send message Xid=~w Message=~w", [Xid, Message], State),
+    ?DEBUG_STATE_FMT(State, "send message Xid=~w Message=~w", [Xid, Message]),
     #of_switch_state{connection_pid = ConnectionPid} = State,
     case of_connection:send(ConnectionPid, Xid, Message) of
         ok ->
@@ -272,7 +279,7 @@ process_connection_up(State) ->
 %%     State.
 
 process_timer_expired_receive_hello(State) ->
-    debug_switch("no hello received from peer, closing connection", State),
+    ?DEBUG_STATE(State, "no hello received from peer, closing connection"),
     State1 = State#of_switch_state{receive_hello_timer = undefined},
     State2 = close_connection(State1),
     {stop, no_hello_received, State2}.
@@ -284,12 +291,12 @@ process_timer_expired_send_echo_request(State) ->
 
 process_timer_expired_receive_reply(Xid, State) ->
     %% TODO: look up the Xid and determine what to do
-    debug_switch("no reply received from peer for Xid=~w, closing connection", [Xid], State),
+    ?DEBUG_STATE_FMT(State, "no reply received from peer for Xid=~w, closing connection", [Xid]),
     State1 = close_connection(State),
     {stop, no_reply_received, State1}.
 
 process_received_message(Xid, Message, State) ->
-    debug_switch("receive message Xid=~w Message=~w", [Xid, Message], State),
+    ?DEBUG_STATE_FMT(State, "receive message Xid=~w Message=~w", [Xid, Message]),
     case State#of_switch_state.version of
         undefined -> process_received_initial_message(Xid, Message, State);
         _         -> process_received_subsequent_message(Xid, Message, State)
@@ -306,11 +313,11 @@ process_received_initial_hello(_Xid, Hello, State) ->
     Version = Hello#of_vxx_hello.version,
     if
         (Version >= ?OF_VERSION_MIN) andalso (Version =< ?OF_VERSION_MAX) ->
-            debug_switch("version negotiation succeeded Version=~w", [Version], State1),
+            ?DEBUG_STATE_FMT(State1, "version negotiation succeeded Version=~w", [Version]),
             State2 = State#of_switch_state{version = Version},
             {noreply, State2};
         true ->
-            debug_switch("version negotiation failed Version=~w", [Version], State1),   %% TODO: report both version
+            ?DEBUG_STATE_FMT(State1, "version negotiation failed Version=~w", [Version]),   %% TODO: report both version
             State2 = send_error_incompatible(State1),
             State3 = close_connection(State2),
             %% TODO: This causes a "=ERROR REPORT===="; can that be avoided?
@@ -351,7 +358,7 @@ process_received_subsequent_message(Xid, Message, State) ->
 
 process_received_hello(_Xid, Hello, State) ->
     %% Be tolerant: allow peer to send hello message as non-initial message (ignore it)
-    debug_switch("peer unexpectedly sent non-initial hello message Hello=~w", [Hello], State),
+    ?DEBUG_STATE_FMT(State, "peer unexpectedly sent non-initial hello message Hello=~w", [Hello]),
     {noreply, State}.
 
 process_received_v10_echo_request(Xid, EchoRequest, State) ->
@@ -364,7 +371,7 @@ process_received_reply(Xid, Reply, State) ->
     {PendingRequest, State1} = extract_pending_request(Xid, State),
     case PendingRequest of
         undefined ->
-            debug_switch("received unsolicited or late reply Xid=~w Reply=~w", [Xid, Reply], State),
+            ?DEBUG_STATE_FMT(State, "received unsolicited or late reply Xid=~w Reply=~w", [Xid, Reply]),
             {noreply, State1};
         _ ->
             #pending_request{timer = Timer, process_reply_fun = ProcessReplyFun} = PendingRequest,
@@ -376,7 +383,7 @@ process_received_v10_echo_reply(_Xid, EchoReply, State) ->
     %% Be tolerant; accept echo reply with data which does not match echo request
     case EchoReply#of_v10_echo_reply.data of
         << >> -> nop;
-        Data  -> debug_switch("echo reply contains unexpected data ~w", [Data], State)
+        Data  -> ?DEBUG_STATE_FMT(State, "echo reply contains unexpected data ~w", [Data])
     end,
     State1 = start_send_echo_request_timer(State),
     {noreply, State1}.
@@ -387,15 +394,29 @@ process_received_v10_features_reply(_Xid, _FeaturesReply, State) ->
 
 process_received_unknown_message(_Xid, Message, State) ->
     %% TODO: add missing messages
-    debug_switch("received unknown message Message=~w", [Message], State),
+    ?DEBUG_STATE_FMT(State, "received unknown message Message=~w", [Message]),
     {noreply, State}.
 
 process_received_unexpected_from_switch_message(_Xid, Message, State) ->
-    debug_switch("received unexpected message from switch Message=~w", [Message], State),
+    ?DEBUG_STATE_FMT(State, "received unexpected message from switch Message=~w", [Message]),
     {noreply, State}.
 
 process_received_unimplemented_message(_Xid, Message, State) ->
     %% TODO: this goes away once all messages are implemented
-    debug_switch("received unimplemented message Message=~w", [Message], State),
+    ?DEBUG_STATE_FMT(State, "received unimplemented message Message=~w", [Message]),
     {noreply, State}.
 
+process_closed(State) ->
+    ?INFO_STATE(State, "switch closed connection"),
+    State#of_switch_state.owner_pid ! of_closed,   %% TODO: of_connection_closed / of_switch_disconnected ?
+    State1 = disconnected_state(State),
+    {noreply, State1}.
+
+disconnected_state(State) ->
+    State1 = stop_receive_hello_timer(State),
+    State2 = stop_send_echo_request_timer(State1),
+    State3 = State2#of_switch_state{
+               log_keys         = [],     %% TODO: set remote in start_link instead of connect (create connection there as well)
+               version          = undefined,
+               pending_requests = dict:new()},
+    State3.

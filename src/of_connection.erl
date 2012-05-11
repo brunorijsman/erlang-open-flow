@@ -23,17 +23,19 @@
 
 -include_lib("include/of.hrl").
 -include_lib("include/of_v10.hrl").
+
+-define(STATE_RECORD, of_connection_state).
 -include_lib("include/of_log.hrl").
 
 -record(of_connection_state, {
+          log_keys,
+          owner_pid,
           socket,
           direction,
           receive_state,
           receive_need_len,
           received_data,
-          received_header,
-          receiver_pid,
-          log_keys}).
+          received_header}).
 
 %% TODO: State (receive data) needs to be updated when connect or close
 
@@ -42,7 +44,7 @@
 %%
 
 start_link() ->
-    gen_server:start_link(?MODULE, [], []).
+    gen_server:start_link(?MODULE, [self()], []).
 
 stop(Pid) ->
     gen_server:call(Pid, stop).
@@ -64,23 +66,17 @@ send(Pid, Xid, Message) ->
 %% gen_server callbacks.
 %%
 
-init([]) ->
+init([OwnerPid]) ->
     State = #of_connection_state{
+      log_keys         = [],
+      owner_pid        = OwnerPid,
       socket           = undefined,
       direction        = undefined,
       receive_state    = undefined,
       receive_need_len = undefined,
       received_data    = undefined,
-      received_header  = undefined,
-      receiver_pid     = undefined,
-      log_keys         = []},
+      received_header  = undefined},
     {ok, State}.
-
--define(DEBUG_STATE(State, Message), ?DEBUG_KEY(State#of_connection_state.log_keys, Message)).
--define(INFO_STATE(State, Message), ?INFO_KEY(State#of_connection_state.log_keys, Message)).
--define(NOTICE_STATE(State, Message), ?NOTICE_KEY(State#of_connection_state.log_keys, Message)).
--define(NOTICE_STATE_FMT(State, Format, Args), ?NOTICE_KEY_FMT(State#of_connection_state.log_keys, Format, Args)).
--define(ERROR_STATE_FMT(State, Format, Args), ?ERROR_KEY_FMT(State#of_connection_state.log_keys, Format, Args)).
 
 handle_call(stop, _From, State) ->
     ?DEBUG_STATE(State, "stop"),
@@ -93,19 +89,17 @@ handle_call({connect, _Address, _Port}, _From, State)
     ?DEBUG_STATE(State, "initiate outgoing connection when already connected"),
     {reply, {error, already_connected}, State};
 
-handle_call({connect, Address, Port}, From, State) ->
+handle_call({connect, Address, Port}, _From, State) ->
     ?DEBUG_STATE(State, "initiate outgoing connection"),
     Options = [binary, {active, once}],
     case gen_tcp:connect(Address, Port, Options) of
         {ok, Socket} ->
-            {FromPid, _FromTag} = From,
             State1 = State#of_connection_state{
                        socket           = Socket,
                        direction        = outgoing,
                        receive_state    = header,
                        receive_need_len = ?OF_HEADER_LEN,
-                       received_data    = <<>>,
-                       receiver_pid     = FromPid},
+                       received_data    = <<>>},
             State2 = set_log_keys(State1),
             {reply, ok, State2};
         {error, Reason} ->
@@ -117,16 +111,14 @@ handle_call({accept, _Socket}, _From, State)
     ?DEBUG_STATE(State, "accept incoming connection when already connected"),
     {reply, {error, already_connected}, State};
 
-handle_call({accept, Socket}, From, State) ->
+handle_call({accept, Socket}, _From, State) ->
     ok = inet:setopts(Socket, [{active, once}]),
-    {FromPid, _FromTag} = From,
     State1 = State#of_connection_state{
                socket           = Socket,
                direction        = incoming,
                receive_state    = header,
                receive_need_len = ?OF_HEADER_LEN,
-               received_data    = <<>>,
-               receiver_pid     = FromPid},
+               received_data    = <<>>},
     State2 = set_log_keys(State1),
     ?DEBUG_STATE(State2, "accept incoming connection"),
     {reply, ok, State2};
@@ -174,7 +166,7 @@ handle_info({tcp_closed, Socket}, State) ->
     case State#of_connection_state.socket of
         Socket -> 
             ?INFO_STATE(State, "connection closed by remote"),
-            State#of_connection_state.receiver_pid ! of_closed,
+            State#of_connection_state.owner_pid ! of_closed,
             State1 = disconnected_state(State),
             {noreply, State1};
         undefined ->
@@ -189,7 +181,7 @@ handle_info({tcp_error, Socket, Reason}, State) ->
     case State#of_connection_state.socket of
         Socket -> 
             ?NOTICE_STATE_FMT(State, "connection error Reason=~p", [Reason]),
-            State#of_connection_state.receiver_pid ! {of_error, Reason},
+            State#of_connection_state.owner_pid ! {of_error, Reason},
             State1 = disconnected_state(State),
             {noreply, State1};
         undefined ->
@@ -209,7 +201,7 @@ terminate(Reason, State) ->
     ok.
 
 code_change(OldVersion, State, _Extra) ->
-    ?NOTICE_STATE_FMT(State, "code_change OldVersion=~w", [OldVersion]),
+    ?NOTICE_STATE_FMT(State, "code change OldVersion=~w", [OldVersion]),
     {ok, State}.
 
 %%
@@ -257,11 +249,11 @@ consume_header(HeaderBin, State) ->
                               received_header  = HeaderRec}.
 
 consume_body(BodyBin, State) ->
-    #of_connection_state{received_header = HeaderRec,
-                         receiver_pid    = ReceiverPid} = State,
+    #of_connection_state{owner_pid       = OwnerPid,
+                         received_header = HeaderRec} = State,
     #of_v10_header{type = MessageType, xid = Xid} = HeaderRec,
     MessageRec = of_v10_decoder:decode_body(MessageType, BodyBin),
-    ReceiverPid ! {of_receive_message, Xid, MessageRec},
+    OwnerPid ! {of_receive_message, Xid, MessageRec},
     State#of_connection_state{receive_state    = header,
                               receive_need_len = ?OF_HEADER_LEN,
                               received_header  = undefined}.
@@ -274,12 +266,13 @@ set_log_keys(State) ->
 
 disconnected_state(State) ->
     State#of_connection_state{
+      log_keys         = [],
       socket           = undefined,
       direction        = undefined,
       receive_state    = undefined,
       receive_need_len = undefined,
       received_data    = undefined,
-      log_keys         = []}.
+      received_header  = undefined}.
 
 %%
 %% Unit tests. 

@@ -43,4 +43,33 @@
 -define(EMERGENCY_KEY(Keys, Message), ?LOG(emergency, Keys, Message, [])).
 -define(EMERGENCY_KEY_FMT(Keys, Format, Args), ?LOG(emergency, Keys, Format, Args)).
 
+
+-ifdef(STATE_RECORD).
+
+-define(DEBUG_STATE(State, Message), ?DEBUG_KEY(State#?STATE_RECORD.log_keys, Message)).
+-define(DEBUG_STATE_FMT(State, Format, Args), ?DEBUG_KEY_FMT(State#?STATE_RECORD.log_keys, Format, Args)).
+
+-define(INFO_STATE(State, Message), ?INFO_KEY(State#?STATE_RECORD.log_keys, Message)).
+-define(INFO_STATE_FMT(State, Format, Args), ?INFO_KEY_FMT(State#?STATE_RECORD.log_keys, Format, Args)).
+
+-define(NOTICE_STATE(State, Message), ?NOTICE_KEY(State#?STATE_RECORD.log_keys, Message)).
+-define(NOTICE_STATE_FMT(State, Format, Args), ?NOTICE_KEY_FMT(State#?STATE_RECORD.log_keys, Format, Args)).
+
+-define(WARNING_STATE(State, Message), ?WARNING_KEY(State#?STATE_RECORD.log_keys, Message)).
+-define(WARNING_STATE_FMT(State, Format, Args), ?WARNING_KEY_FMT(State#?STATE_RECORD.log_keys, Format, Args)).
+
+-define(ERROR_STATE(State, Message), ?ERROR_KEY(State#?STATE_RECORD.log_keys, Message)).
+-define(ERROR_STATE_FMT(State, Format, Args), ?ERROR_KEY_FMT(State#?STATE_RECORD.log_keys, Format, Args)).
+
+-define(CRITICAL_STATE(State, Message), ?CRITICAL_KEY(State#?STATE_RECORD.log_keys, Message)).
+-define(CRITICAL_STATE_FMT(State, Format, Args), ?CRITICAL_KEY_FMT(State#?STATE_RECORD.log_keys, Format, Args)).
+
+-define(ALERT_STATE(State, Message), ?ALERT_KEY(State#?STATE_RECORD.log_keys, Message)).
+-define(ALERT_STATE_FMT(State, Format, Args), ?ALERT_KEY_FMT(State#?STATE_RECORD.log_keys, Format, Args)).
+
+-define(EMERGENCY_STATE(State, Message), ?EMERGENCY_KEY(State#?STATE_RECORD.log_keys, Message)).
+-define(EMERGENCY_STATE_FMT(State, Format, Args), ?EMERGENCY_KEY_FMT(State#?STATE_RECORD.log_keys, Format, Args)).
+
 -endif.
+
+-endif. 
