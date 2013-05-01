@@ -1,5 +1,5 @@
 %%%=====================================================================================================================
-%%% Copyright (c) 2012, Bruno Rijsman
+%%% Copyright (c) 2012-2013, Bruno Rijsman
 %%% All rights reserved.
 %%%
 %%% Redistribution and use in source and binary forms, with or without modification, are permitted provided that the 
@@ -21,7 +21,7 @@
 %%%=====================================================================================================================
 
 %%% @author Bruno Rijsman <brunorijsman@hotmail.com>
-%%% @copyright 2012 Bruno Rijsman
+%%% @copyright 2012-2013 Bruno Rijsman
 
 -module(of_v11_test_msgs).
 

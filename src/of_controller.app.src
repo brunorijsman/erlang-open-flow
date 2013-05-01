@@ -1,0 +1,20 @@
+{application, of_controller,
+ [
+  {description, "OpenFlow controller"},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [kernel, stdlib]},
+  {mod, { of_controller_app, [of_connection,
+                              of_controller,
+                              of_events,
+                              of_logger,
+                              of_switch,
+                              of_v10_decoder,
+                              of_v10_encoder,
+                              of_v10_test_msgs,
+                              of_v11_decoder,
+                              of_v11_encoder,
+                              of_v11_test_msgs,
+                              euler1]}},
+  {env, []}
+ ]}.
